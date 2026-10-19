@@ -90,9 +90,22 @@ Dans tous les champs « Icône » :
 
 Colle le lien de la chaîne ou son `@pseudo` : l'identifiant est retrouvé tout seul.
 
+## Thèmes
+
+Trois thèmes au choix, dans **Réglages → Général**. Un clic donne l'aperçu immédiat, **Enregistrer** le garde.
+
+| Graphite (par défaut) | Aurore | Papier |
+| --- | --- | --- |
+| ![Thème Graphite](docs/images/theme-graphite.jpg) | ![Thème Aurore](docs/images/theme-aurore.jpg) | ![Thème Papier](docs/images/theme-papier.jpg) |
+| Sombre, plat et dense, accent citron vert | Sombre, reflets bleutés, cartes en verre | Clair, titres éditoriaux en serif |
+
+![Choix du thème](docs/images/reglages-theme.jpg)
+
+Les cartes se rangent toutes seules : chacune garde la hauteur de son contenu et les plus petites viennent combler les trous.
+
 ## Réglages
 
-Le bouton **Réglages** de la barre d'édition a trois onglets.
+Le bouton **Réglages** de la barre d'édition a trois onglets : **Général** (thème, titre, ouverture des liens, vérification des services), **Clés & accès** et **Sauvegarde**.
 
 ### Clés & accès
 
@@ -149,6 +162,7 @@ Tout ce que fait l'éditeur est enregistré dans `data/config.json`, qu'on peut 
 ```jsonc
 {
   "title": "Kiosque",
+  "theme": "graphite",         // ou "aurore", "papier"
   "openIn": "sametab",          // ou "newtab"
   "statusCheck": true,
   "statusInterval": 60,         // secondes

@@ -103,10 +103,13 @@ function iconSources(icon, url) {
   }
   if (icon.startsWith('di:')) {
     const name = icon.slice(3).trim().toLowerCase();
-    return [
-      `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/${name}.png`,
-      `https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/${name}.png`,
-    ];
+    // dashboard-icons a souvent une variante -light / -dark : on prend celle qui se voit sur le thème
+    const lightTheme = THEMES.find((t) => t.value === document.documentElement.dataset.theme)?.light;
+    const variant = lightTheme ? name.replace(/-light$/, '-dark') : name.replace(/-dark$/, '-light');
+    const base = name.replace(/-(light|dark)$/, '');
+    return [...new Set([variant, base, name])]
+      .map((n) => `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/${n}.png`)
+      .concat(`https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/${base}.png`);
   }
   if (/^(https?:)?\/\//.test(icon) || icon.startsWith('/')) return [icon];
   return null; // emoji ou texte
@@ -149,10 +152,10 @@ export const openButton = (url) =>
 
 export const skeletons = (n, cls = 'sk') => Array.from({ length: n }, () => h('div', { class: cls }));
 
-// Zone qui remplit la hauteur disponible de la carte et défile à l'intérieur
-export function fillArea(minHeight, ...children) {
-  const scroll = h('div', { class: 'fill-scroll' }, ...children);
-  const fill = h('div', { class: 'fill', style: { '--min': `${minHeight}px` } }, scroll);
+// Zone qui suit la hauteur de son contenu et défile au-delà de maxHeight
+export function fillArea(maxHeight, ...children) {
+  const scroll = h('div', { class: 'fill-scroll', style: { '--max': `${maxHeight}px` } }, ...children);
+  const fill = h('div', { class: 'fill' }, scroll);
   return { fill, scroll };
 }
 
@@ -170,6 +173,22 @@ export function ago(iso) {
 }
 
 export const sameDay = (a, b) => a.toDateString() === b.toDateString();
+
+// ---------------------------------------------------------------- thème
+
+export const THEMES = [
+  { value: 'graphite', label: 'Graphite', description: 'Sombre, plat et dense' },
+  { value: 'aurore', label: 'Aurore', description: 'Sombre, reflets bleutés' },
+  { value: 'papier', label: 'Papier', description: 'Clair et éditorial', light: true },
+];
+export const DEFAULT_THEME = 'graphite';
+
+// Le thème est aussi gardé dans le navigateur pour être posé avant l'affichage (voir index.html)
+export function applyTheme(theme) {
+  const value = THEMES.some((t) => t.value === theme) ? theme : DEFAULT_THEME;
+  document.documentElement.dataset.theme = value;
+  store.set('kiosque.theme', value);
+}
 
 // ---------------------------------------------------------------- notifications et fenêtres
 

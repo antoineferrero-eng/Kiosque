@@ -29,7 +29,7 @@ export function buildNotes(sec, body, actions, card) {
       h('button', { class: 'btn', type: 'button', onclick: () => closeForm() }, 'Annuler'),
       saveBtn));
 
-  const { fill, scroll: list } = fillArea(sec.minHeight || 300);
+  const { fill, scroll: list } = fillArea(sec.maxHeight || sec.minHeight || 360);
   list.classList.add('notes-list');
 
   body.append(h('div', { class: 'notes' },

@@ -1,4 +1,4 @@
-import { $, $$, settings, target, svg, store, api, h, hostOf, renderIcon, iconButton, openButton, skeletons, ago } from './lib.js';
+import { $, $$, settings, target, svg, store, api, h, hostOf, renderIcon, iconButton, openButton, skeletons, ago, applyTheme } from './lib.js';
 import { initEditor, sectionTools, addSectionTile, addItemTile } from './editor.js';
 import { buildEsport } from './widgets/esport.js';
 import { buildYoutube } from './widgets/youtube.js';
@@ -47,6 +47,7 @@ async function init() {
 }
 
 function renderAll() {
+  applyTheme(config.theme);
   settings.openIn = config.openIn || 'sametab';
   document.title = config.title || 'Kiosque';
   if (config.favicon) $('#favicon').href = config.favicon;
@@ -61,6 +62,22 @@ function renderAll() {
 
   applyStatuses(lastStatus);
   $('#health').hidden = !$('.link[data-check]');
+  layoutMasonry($('#grid'));
+}
+
+// Maçonnerie : chaque carte garde sa hauteur naturelle et occupe autant de lignes de 2 px
+// que nécessaire, les cartes plus courtes venant se ranger dans les trous (grid-auto-flow: dense).
+const ROW = 2;
+let masonry;
+function layoutMasonry(grid) {
+  masonry?.disconnect();
+  const fit = (el) => {
+    const gap = parseFloat(getComputedStyle(el).marginBottom) || 0;
+    el.style.gridRowEnd = `span ${Math.max(1, Math.ceil((el.getBoundingClientRect().height + gap) / ROW))}`;
+  };
+  masonry = new ResizeObserver((entries) => entries.forEach((e) => fit(e.target)));
+  grid.classList.add('is-masonry');
+  for (const el of grid.children) { fit(el); masonry.observe(el); }
 }
 
 // ---------------------------------------------------------------- sections
@@ -250,11 +267,9 @@ function renderFeed(feed, sec) {
 
 function renderPost(post, sec) {
   return h(post.link ? 'a' : 'div', { class: 'post', href: post.link || null, target: target(), rel: 'noopener noreferrer' },
-    h('h3', {}, post.title),
+    h('h3', {}, post.title, post.link ? h('span', { class: 'post-arrow', 'aria-hidden': 'true', html: svg('arrow') }) : null),
     post.description ? h('p', {}, post.description) : null,
-    h('span', { class: 'post-meta' },
-      sec.showDates && post.date ? h('time', { datetime: post.date }, ago(post.date)) : null,
-      post.link ? h('span', { class: 'post-more', html: `Lire la suite ${svg('arrow')}` }) : null));
+    sec.showDates && post.date ? h('span', { class: 'post-meta' }, h('time', { datetime: post.date }, ago(post.date))) : null);
 }
 
 // ---------------------------------------------------------------- pages intégrées

@@ -18,7 +18,7 @@
         { "id": "wikipedia", "title": "Wikipédia", "description": "Encyclopédie", "icon": "di:wikipedia", "url": "https://fr.wikipedia.org" },
         { "id": "hackernews", "title": "Hacker News", "description": "Actus tech", "icon": "favicon", "url": "https://news.ycombinator.com" },
         { "id": "reddit", "title": "Reddit", "icon": "di:reddit", "url": "https://www.reddit.com" },
-        { "id": "cloudflare", "title": "Cloudflare", "icon": "di:cloudflare", "url": "https://www.cloudflare.com" },
+        { "id": "huggingface", "title": "Hugging Face", "description": "Modèles d’IA", "icon": "di:hugging-face", "url": "https://huggingface.co" },
         { "id": "docker-hub", "title": "Docker Hub", "icon": "di:docker", "url": "https://hub.docker.com" }
       ]
     },
@@ -112,8 +112,6 @@
       "tint": "#a78bfa",
       "type": "notes",
       "span": 3,
-      "spanMd": 12,
-      "minHeight": 320
-    }
+      "spanMd": 12    }
   ]
 }

@@ -5,7 +5,7 @@ const fmtTime = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-d
 const fmtDay = new Intl.DateTimeFormat('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
 
 export function buildEsport(sec, body, actions, card) {
-  const { fill, scroll } = fillArea(sec.minHeight || 240, skeletons(3, 'sk sk-match'));
+  const { fill, scroll } = fillArea(sec.maxHeight || sec.minHeight || 300, skeletons(3, 'sk sk-match'));
   scroll.classList.add('esport');
   body.append(fill);
 

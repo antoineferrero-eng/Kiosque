@@ -1,5 +1,5 @@
 // Mode édition : connexion admin, panneaux de modification, ajout, suppression et déplacement des sections.
-import { $, $$, h, svg, api, store, renderIcon, toast, modal, ICON_NAMES } from './lib.js';
+import { $, $$, h, svg, api, store, renderIcon, toast, modal, ICON_NAMES, THEMES, DEFAULT_THEME, applyTheme } from './lib.js';
 import { TYPES, COMMON_FIELDS, GENERAL_FIELDS, SECRET_FIELDS, ESPORT_GAMES, cleanSection, clean } from './schema.js';
 
 const TOKEN_KEY = 'kiosque.token';
@@ -407,6 +407,8 @@ function openSettings(tab = 'general') {
   });
 
   d.body.append(tabs, ...Object.values(panes));
+  // aperçu en direct du thème : on revient au thème enregistré si on ferme sans enregistrer
+  d.dialog.addEventListener('close', () => applyTheme(app.getConfig().theme));
   formFooter(d, {
     extra: logout,
     onSave: async () => {
@@ -624,6 +626,8 @@ function field(obj, f, ctx) {
       return channelField(obj, f, id);
     case 'secret':
       return secretField(f, ctx, id);
+    case 'theme':
+      return themeField(obj, f);
     default: {
       control = h('input', {
         id, class: 'input', type: f.type === 'url' ? 'url' : 'text', 'data-key': f.key,
@@ -755,6 +759,27 @@ function secretField(f, ctx, id) {
     h('div', { class: 'input-group' }, input, reveal, remove),
     status,
     f.link ? h('a', { class: 'field-link', href: f.link, target: '_blank', rel: 'noopener noreferrer', html: `${f.linkLabel} ${svg('external')}` }) : null);
+}
+
+// Choix du thème : cartes avec un aperçu dessiné dans les couleurs de chaque thème
+function themeField(obj, f) {
+  const current = () => obj[f.key] ?? DEFAULT_THEME;
+  const cards = THEMES.map((t) => {
+    const card = h('button', { class: 'theme-card', type: 'button', role: 'radio', 'aria-checked': String(t.value === current()) },
+      h('span', { class: 'theme-preview', 'data-theme': t.value, 'aria-hidden': 'true' }, h('span'), h('span'), h('span')),
+      h('strong', {}, t.label),
+      h('small', {}, t.description));
+    card.addEventListener('click', () => {
+      obj[f.key] = t.value;
+      applyTheme(t.value);
+      cards.forEach((c, i) => c.setAttribute('aria-checked', String(THEMES[i].value === t.value)));
+    });
+    return card;
+  });
+  return h('div', { class: 'field' },
+    h('span', { class: 'field-label' }, f.label),
+    h('div', { class: 'theme-grid', role: 'radiogroup', 'aria-label': f.label }, cards),
+    h('p', { class: 'field-hint' }, 'Aperçu immédiat. Enregistre pour le garder.'));
 }
 
 function listField(obj, f, ctx) {

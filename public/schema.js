@@ -2,7 +2,7 @@
 //
 // Un champ : { key, label, type, default?, hint?, placeholder?, options?, min?, max? }
 // Types : text, url, number, toggle, select, color, icon, checks, list, game, ytchannel,
-//         secret (clé gardée sur le serveur, jamais dans la config)
+//         secret (clé gardée sur le serveur, jamais dans la config), theme
 // Regroupements : { row: [champs] } (côte à côte) et { group: 'Titre', fields: [champs] } (repliable)
 // Une liste : { type: 'list', fields, required, summary, summaryIcon, newItem, addLabel }
 
@@ -173,7 +173,7 @@ export const TYPES = {
       ] },
       { row: [
         { key: 'refresh', label: 'Actualisation (s)', type: 'number', min: 60, max: 3600, default: 300 },
-        { key: 'minHeight', label: 'Hauteur min (px)', type: 'number', min: 150, max: 1000, default: 240 },
+        { key: 'maxHeight', label: 'Hauteur max (px)', type: 'number', min: 150, max: 1000, default: 300 },
       ] },
       {
         key: 'games', label: 'Jeux', type: 'list', addLabel: 'Ajouter un jeu',
@@ -195,9 +195,9 @@ export const TYPES = {
     label: 'Notes',
     description: 'Notes avec tags colorés, gardées dans ton navigateur.',
     icon: 'note',
-    defaults: () => ({ name: 'Notes', icon: 'i:note', tint: '#a78bfa', span: 3, minHeight: 320 }),
+    defaults: () => ({ name: 'Notes', icon: 'i:note', tint: '#a78bfa', span: 3 }),
     fields: [
-      { key: 'minHeight', label: 'Hauteur minimale (px)', type: 'number', min: 150, max: 1200, default: 320 },
+      { key: 'maxHeight', label: 'Hauteur max de la liste (px)', type: 'number', min: 150, max: 1200, default: 360 },
     ],
   },
 
@@ -211,6 +211,7 @@ export const TYPES = {
 };
 
 export const GENERAL_FIELDS = [
+  { key: 'theme', label: 'Thème', type: 'theme' },
   { row: [
     { key: 'title', label: 'Titre de l’onglet', type: 'text', default: 'Kiosque' },
     { key: 'favicon', label: 'Favicon', type: 'url', placeholder: 'Lien d’une image' },
