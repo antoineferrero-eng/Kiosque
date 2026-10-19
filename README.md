@@ -57,12 +57,26 @@ Une fois connecté, tu es en **mode édition** : chaque carte a ses outils, une 
 | Ajouter une application | tuile **Ajouter** dans une section Applications |
 | Modifier une application | clique simplement dessus en mode édition |
 | Déplacer une carte | glisse la **poignée ⋮⋮** (ou flèches du clavier dessus) |
+| Redimensionner une carte | glisse la **poignée du coin bas-droit** : vers le bas pour la hauteur, sur le côté pour la largeur |
 | Supprimer | **corbeille**, deux clics pour confirmer |
 | Quitter le mode édition | **Terminer** (ou Échap) |
 
 Tout est enregistré sur le serveur dès que tu cliques sur **Enregistrer**.
 
 ![Modifier une application](docs/images/modifier-application.jpg)
+
+### Redimensionner une carte
+
+En mode édition, chaque carte a une poignée dans son coin bas-droit. Glisse-la :
+
+- **vers le bas ou le haut** pour la hauteur : le contenu s'adapte (les listes d'articles, de vidéos ou de notes s'allongent ou défilent, une page intégrée s'agrandit) ;
+- **vers la droite ou la gauche** pour la largeur, alignée sur la grille de 12 colonnes.
+
+Une étiquette affiche la taille pendant le glissement, et les autres cartes se réorganisent toutes seules. La largeur est mémorisée à part pour les grands écrans et pour les tablettes ; sur téléphone, seule la hauteur se règle.
+
+**Double-clic** sur la poignée : retour à la hauteur automatique. Au clavier : flèches haut / bas pour la hauteur, gauche / droite pour la largeur (Maj pour aller plus vite). La hauteur se règle aussi dans le formulaire de la section (champ « Hauteur »).
+
+![Redimensionner une carte](docs/images/redimensionner.jpg)
 
 ## Ajouter une section
 
@@ -173,6 +187,7 @@ Tout ce que fait l'éditeur est enregistré dans `data/config.json`, qu'on peut 
       "icon": "i:server",
       "tint": "#8b9cff",
       "span": 6,                // largeur sur 12 colonnes
+      "cardHeight": 420,        // facultatif : hauteur fixe en px (sinon elle suit le contenu)
       "items": [
         { "title": "Portainer", "url": "https://192.168.1.10:9443", "icon": "di:portainer", "allowInsecure": true }
       ]

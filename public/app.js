@@ -1,5 +1,5 @@
 import { $, $$, settings, target, svg, store, api, h, hostOf, renderIcon, iconButton, openButton, skeletons, ago, applyTheme } from './lib.js';
-import { initEditor, sectionTools, addSectionTile, addItemTile } from './editor.js';
+import { initEditor, sectionTools, addSectionTile, addItemTile, resizeHandle } from './editor.js';
 import { buildEsport } from './widgets/esport.js';
 import { buildYoutube } from './widgets/youtube.js';
 import { buildFlags } from './widgets/flags.js';
@@ -38,8 +38,9 @@ async function init() {
   setupStatus();
   initEditor({
     getConfig: () => config,
-    setConfig: (next) => {
+    setConfig: (next, { render = true } = {}) => {
       config = next;
+      if (!render) return;
       renderAll();
       refreshStatus(true);
     },
@@ -86,10 +87,16 @@ function renderSection(sec, index) {
   const span = sec.span || 4;
   const isCollapsed = collapsed.has(sec.id);
   const card = h('section', {
-    class: `card type-${sec.type}${isCollapsed ? ' is-collapsed' : ''}`,
+    class: `card type-${sec.type}${isCollapsed ? ' is-collapsed' : ''}${sec.cardHeight ? ' has-height' : ''}`,
     id: `section-${sec.id}`,
     'data-id': sec.id,
-    style: { '--span': span, '--span-md': sec.spanMd || (span >= 6 ? 12 : 6), '--i': index, ...(sec.tint && { '--tint': sec.tint }) },
+    style: {
+      '--span': span,
+      '--span-md': sec.spanMd || (span >= 6 ? 12 : 6),
+      '--i': index,
+      ...(sec.tint && { '--tint': sec.tint }),
+      ...(sec.cardHeight && { '--card-h': `${sec.cardHeight}px` }),
+    },
   });
   const body = h('div', { class: 'card-body' });
   const actions = h('div', { class: 'card-actions' });
@@ -102,7 +109,8 @@ function renderSection(sec, index) {
 
   card.append(
     h('header', { class: 'card-head' }, toggle, h('div', { class: 'card-tools' }, actions, sectionTools(sec, card))),
-    h('div', { class: 'card-body-wrap' }, body));
+    h('div', { class: 'card-body-wrap' }, body),
+    resizeHandle(sec, card));
   try {
     BUILDERS[sec.type]?.(sec, body, actions, card);
   } catch (err) {

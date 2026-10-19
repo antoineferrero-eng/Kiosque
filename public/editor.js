@@ -137,13 +137,14 @@ function createPassword() {
 
 const cloneConfig = () => structuredClone(app.getConfig());
 
-async function save(next, message = 'Modifications enregistrées') {
+// render: false enregistre sans redessiner la page (utile quand l'écran montre déjà le résultat)
+async function save(next, message = 'Modifications enregistrées', { render = true } = {}) {
   try {
-    app.setConfig(await api('/api/config', { method: 'PUT', body: next, token }));
+    app.setConfig(await api('/api/config', { method: 'PUT', body: next, token }), { render });
     toast(message);
     return true;
   } catch (err) {
-    if (err.status === 401 && (await askPassword())) return save(next, message);
+    if (err.status === 401 && (await askPassword())) return save(next, message, { render });
     toast(err.message, 'error');
     return false;
   }
@@ -179,6 +180,132 @@ export function sectionTools(sec, card) {
   const edit = h('button', { class: 'icon-btn', type: 'button', title: 'Modifier la section', 'aria-label': 'Modifier la section', html: svg('pencil') });
   edit.addEventListener('click', () => openSectionEditor(sec.id));
   return h('div', { class: 'edit-tools' }, grip, edit, armedButton('trash', 'Supprimer la section', () => removeSection(sec.id)));
+}
+
+// ---------------------------------------------------------------- redimensionnement des cartes
+
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+const snapHeight = (v) => clamp(Math.round(v / 10) * 10, 120, 2400);
+
+// Quelle largeur on règle selon l'écran : span (grand écran), spanMd (tablette), rien (téléphone)
+const widthKey = () => (innerWidth <= 900 ? null : innerWidth <= 1280 ? 'spanMd' : 'span');
+
+// Poignée en bas à droite : glisser pour la hauteur et la largeur, double-clic pour revenir à la hauteur auto,
+// flèches du clavier (Maj : plus vite) quand elle a le focus.
+export function resizeHandle(sec, card) {
+  const tip = h('span', { class: 'resize-tip' });
+  const handle = h('div', {
+    class: 'resize-handle', tabindex: '0', role: 'slider',
+    'aria-label': `Redimensionner ${sec.name ?? 'la section'}`,
+    title: 'Glisser pour redimensionner · double-clic : hauteur automatique',
+    html: svg('resize'),
+  }, tip);
+
+  const columns = () => {
+    const grid = card.parentElement;
+    const style = getComputedStyle(grid);
+    const gap = parseFloat(style.columnGap) || 0;
+    const count = style.gridTemplateColumns.split(' ').length;
+    return { step: (grid.clientWidth + gap) / count, gap, count };
+  };
+  const currentSpan = () => {
+    const { step, gap, count } = columns();
+    return clamp(Math.round((card.getBoundingClientRect().width + gap) / step), 1, count);
+  };
+  const show = (height, span) => {
+    const key = widthKey();
+    const cols = span ?? (card.isConnected ? currentSpan() : sec[key] ?? sec.span);
+    tip.textContent = `${key && cols ? `${cols}/12 · ` : ''}${height ? `${height} px` : 'hauteur auto'}`;
+    handle.classList.toggle('is-vertical', !key);
+  };
+
+  const preview = ({ height, span }) => {
+    if (height !== undefined) {
+      card.classList.toggle('has-height', height != null);
+      if (height == null) card.style.removeProperty('--card-h'); else card.style.setProperty('--card-h', `${height}px`);
+    }
+    if (span != null) card.style.setProperty(widthKey() === 'spanMd' ? '--span-md' : '--span', span);
+    show(height === undefined ? sec.cardHeight : height, span);
+  };
+
+  let commitTimer;
+  let pending = {};
+  const commit = (change, message = 'Taille enregistrée') => {
+    clearTimeout(commitTimer);
+    const next = cloneConfig();
+    const target = next.sections.find((s) => s.id === sec.id);
+    if (!target) return;
+    if ('height' in change) {
+      if (change.height == null) delete target.cardHeight; else target.cardHeight = change.height;
+      sec.cardHeight = change.height ?? undefined;
+    }
+    const key = widthKey();
+    if (change.span != null && key) { target[key] = change.span; sec[key] = change.span; }
+    save(next, message, { render: false });
+  };
+
+  let start = null;
+  let current = {};
+  handle.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+    handle.setPointerCapture(e.pointerId);
+    const r = card.getBoundingClientRect();
+    start = { x: e.clientX, y: e.clientY, height: r.height, width: r.width, key: widthKey() };
+    current = {};
+    card.classList.add('is-resizing');
+    document.body.classList.add('is-resizing');
+    document.body.classList.toggle('is-vertical', !start.key);
+    show(snapHeight(r.height), currentSpan());
+  });
+  handle.addEventListener('pointermove', (e) => {
+    if (!start) return;
+    current.height = snapHeight(start.height + e.clientY - start.y);
+    if (start.key) {
+      const { step, gap, count } = columns();
+      current.span = clamp(Math.round((start.width + e.clientX - start.x + gap) / step), 2, count);
+    }
+    preview(current);
+  });
+  const end = () => {
+    if (!start) return;
+    const moved = 'height' in current;
+    start = null;
+    card.classList.remove('is-resizing');
+    document.body.classList.remove('is-resizing', 'is-vertical');
+    if (moved) commit(current);
+  };
+  handle.addEventListener('pointerup', end);
+  handle.addEventListener('pointercancel', end);
+  handle.addEventListener('lostpointercapture', end);
+
+  handle.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    preview({ height: null });
+    commit({ height: null }, 'Hauteur automatique');
+  });
+
+  handle.addEventListener('keydown', (e) => {
+    const big = e.shiftKey ? 3 : 1;
+    const height = sec.cardHeight ?? snapHeight(card.getBoundingClientRect().height);
+    let change;
+    if (e.key === 'ArrowDown') change = { height: snapHeight(height + 20 * big) };
+    else if (e.key === 'ArrowUp') change = { height: snapHeight(height - 20 * big) };
+    else if ((e.key === 'ArrowRight' || e.key === 'ArrowLeft') && widthKey()) {
+      change = { span: clamp(currentSpan() + (e.key === 'ArrowRight' ? 1 : -1), 2, columns().count) };
+    } else if (e.key === 'Delete' || e.key === 'Backspace') change = { height: null };
+    if (!change) return;
+    e.preventDefault();
+    preview(change);
+    if ('height' in change) sec.cardHeight = change.height ?? undefined;
+    pending = { ...pending, ...change };
+    clearTimeout(commitTimer);
+    commitTimer = setTimeout(() => { commit(pending); pending = {}; }, 600);
+  });
+
+  show(sec.cardHeight, null);
+  return handle;
 }
 
 export const addSectionTile = () =>

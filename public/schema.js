@@ -43,6 +43,8 @@ export const COMMON_FIELDS = [
     { key: 'span', label: 'Largeur', type: 'select', options: SPANS, number: true, default: 4 },
     { key: 'spanMd', label: 'Largeur sur tablette', type: 'select', options: [{ value: '', label: 'Auto' }, ...SPANS], number: true },
   ] },
+  { key: 'cardHeight', label: 'Hauteur (px)', type: 'number', min: 120, max: 2400, placeholder: 'Auto',
+    hint: 'Vide = la hauteur suit le contenu. Tu peux aussi glisser la poignée en bas à droite de la carte.' },
 ];
 
 export const TYPES = {
