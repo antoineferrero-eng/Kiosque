@@ -2,6 +2,8 @@
 
 Un dashboard auto-hébergé, moderne et entièrement configurable depuis la page. Aucune dépendance : un seul `server.js` (Node 20.12+) et du HTML/CSS/JS.
 
+![Aperçu de Kiosque](docs/images/apercu.jpg)
+
 ## Ce qu'il sait faire
 
 | Section | Rôle |
@@ -14,64 +16,131 @@ Un dashboard auto-hébergé, moderne et entièrement configurable depuis la page
 | **Notes** | Notes avec tags colorés et recherche, gardées dans le navigateur |
 | **Devine le pays** | Quiz sur les drapeaux |
 
-Et aussi : sections repliables, déplaçables, de largeur réglable, responsive mobile, statut global des services en haut de page.
+Et aussi : sections repliables, déplaçables, de largeur réglable, statut global des services en haut de page, et un affichage pensé pour le mobile.
 
-## Personnaliser
+<p align="center"><img src="docs/images/mobile.jpg" alt="Kiosque sur mobile" width="300"></p>
 
-Clique sur le **crayon** en haut à droite et entre le mot de passe admin (`ADMIN_PASSWORD`). En mode édition :
+## Démarrage
 
-- **+ Section** : ajoute une section (applications, page intégrée, flux, YouTube…)
-- **crayon d'une carte** : modifie son titre, son icône, sa couleur, sa largeur et son contenu
-- **clic sur une application** : ouvre directement son formulaire ; la tuile **Ajouter** en crée une nouvelle
-- **poignée ⋮⋮** : glisse la carte pour la déplacer (ou flèches du clavier)
-- **Réglages** : titre, ouverture des liens, vérification des statuts, et la configuration complète en JSON (exporter, importer)
+### 1. Lancer Kiosque
 
-Les modifications sont enregistrées sur le serveur, dans `data/config.json`. Au premier lancement, ce fichier est créé à partir de `config.default.json`.
+Avec Docker :
 
-**Icônes** : `i:nom` (icônes intégrées, proposées dans le champ), `di:nom` (catalogue [dashboardicons.com](https://dashboardicons.com), ex. `di:portainer`), un lien d'image, un emoji, ou `favicon` pour l'icône du site.
+```bash
+docker compose up -d --build
+```
 
-**Chaînes YouTube** : colle le lien de la chaîne ou son `@pseudo`, l'identifiant est retrouvé tout seul.
-
-## Variables d'environnement
-
-| Variable | Obligatoire | Rôle |
-| --- | --- | --- |
-| `ADMIN_PASSWORD` | non | Mot de passe du mode édition. Vide : dashboard en lecture seule. |
-| `PANDASCORE_TOKEN` | non | Clé API [PandaScore](https://app.pandascore.co) (gratuite) pour l'e-sport. Vide : les sections e-sport affichent un message. |
-| `PORT` | non | Port d'écoute, `3010` par défaut. |
-| `DATA_DIR` | non | Dossier de la config, `data` par défaut (`/app/data` dans Docker). |
-
-En local ou avec Docker Compose, elles se mettent dans un fichier `.env` (copie de `.env.example`). Ce fichier n'est jamais envoyé sur GitHub.
-
-## Lancer en local
+Ou directement avec Node :
 
 ```bash
 node server.js
 ```
 
-Puis http://localhost:3010.
+Puis ouvre http://localhost:3010. Au premier lancement, Kiosque part d'une configuration d'exemple (`config.default.json`).
+
+### 2. Créer le mot de passe admin
+
+Clique sur le **crayon** en haut à droite. La première fois, Kiosque te demande de choisir le mot de passe qui protégera le mode édition (8 caractères minimum).
+
+![Création du mot de passe au premier lancement](docs/images/premier-lancement.jpg)
+
+### 3. Personnaliser
+
+Une fois connecté, tu es en **mode édition** : chaque carte a ses outils, une barre apparaît en bas de l'écran.
+
+![Mode édition](docs/images/mode-edition.jpg)
+
+| Action | Comment |
+| --- | --- |
+| Ajouter une section | **+ Section** dans la barre du bas |
+| Modifier une section | **crayon** de la carte : titre, icône, couleur, largeur et contenu |
+| Ajouter une application | tuile **Ajouter** dans une section Applications |
+| Modifier une application | clique simplement dessus en mode édition |
+| Déplacer une carte | glisse la **poignée ⋮⋮** (ou flèches du clavier dessus) |
+| Supprimer | **corbeille**, deux clics pour confirmer |
+| Quitter le mode édition | **Terminer** (ou Échap) |
+
+Tout est enregistré sur le serveur dès que tu cliques sur **Enregistrer**.
+
+![Modifier une application](docs/images/modifier-application.jpg)
+
+## Ajouter une section
+
+**+ Section** ouvre la liste des types disponibles :
+
+![Ajouter une section](docs/images/ajouter-section.jpg)
+
+### Intégrer une app perso (iframe)
+
+Choisis **Page intégrée**, puis indique l'adresse de ta page ou de ton app et sa hauteur. Avec « Fond transparent », la page laisse voir le fond du dashboard si elle n'a pas de fond à elle.
+
+![Ajouter une page intégrée](docs/images/page-integree.jpg)
+
+> Certains sites (Google, YouTube, la plupart des banques…) refusent d'être affichés dans une page intégrée. Et si Kiosque est servi en `https://`, les pages en `http://` seront bloquées par le navigateur.
+
+### Icônes
+
+Dans tous les champs « Icône » :
+
+- `i:nom` : icônes intégrées (proposées pendant la saisie), ex. `i:server`
+- `di:nom` : le catalogue [dashboardicons.com](https://dashboardicons.com), ex. `di:portainer`, `di:jellyfin`
+- un lien d'image, un emoji, ou `favicon` pour l'icône du site
+
+### Chaînes YouTube
+
+Colle le lien de la chaîne ou son `@pseudo` : l'identifiant est retrouvé tout seul.
+
+## Réglages
+
+Le bouton **Réglages** de la barre d'édition a trois onglets.
+
+### Clés & accès
+
+C'est ici que se règlent les clés API des widgets et le mot de passe admin, sans toucher au serveur. Les clés sont gardées sur le serveur (`data/secrets.json`) et ne sont jamais renvoyées en clair à la page. La clé PandaScore est aussi modifiable directement depuis le formulaire d'une section e-sport.
+
+![Réglages : clés et accès](docs/images/reglages-cles.jpg)
+
+| Clé | Pour quoi | Où l'obtenir |
+| --- | --- | --- |
+| Clé PandaScore | Sections e-sport | Gratuite sur [app.pandascore.co](https://app.pandascore.co) |
+
+### Sauvegarde : enregistrer et charger une configuration
+
+- **Télécharger ma configuration** : enregistre toute la config (sections, applications, flux, chaînes…) dans un fichier `.json`. Coche « Inclure les clés API » pour emporter aussi la clé PandaScore.
+- **Charger une configuration** : glisse un fichier `.json` dans la zone (ou clique pour le choisir). Kiosque affiche son contenu avant de remplacer quoi que ce soit.
+
+![Réglages : sauvegarde](docs/images/reglages-sauvegarde.jpg)
+
+C'est la façon la plus simple de passer ta configuration d'un serveur à un autre, ou de garder une sauvegarde.
 
 ## Déployer avec Portainer
 
-1. Pousse le projet sur GitHub.
-2. Portainer → **Stacks** → **Add stack**, nom `kiosque`, méthode **Repository**.
-3. Repository URL : l'adresse du dépôt. Reference : `refs/heads/main`. Compose path : `docker-compose.yml`.
+1. Portainer → **Stacks** → **Add stack**, nom `kiosque`, méthode **Repository**.
+2. Repository URL : l'adresse de ce dépôt. Reference : `refs/heads/main`. Compose path : `docker-compose.yml`.
    Dépôt privé : active **Authentication** (nom d'utilisateur GitHub + *personal access token*).
-4. Dans **Environment variables**, ajoute `ADMIN_PASSWORD` et `PANDASCORE_TOKEN` avec tes valeurs.
-5. **Deploy the stack**, puis ouvre `http://<ip-du-serveur>:3010`.
+3. **Deploy the stack**, puis ouvre `http://<ip-du-serveur>:3010`.
+4. Crée ton mot de passe au premier clic sur le crayon, puis charge ta configuration depuis **Réglages → Sauvegarde**.
 
-La config est gardée dans le volume `kiosque-data` : elle survit aux mises à jour. Pour mettre à jour le code : pousse sur GitHub, puis **Pull and redeploy** dans la stack.
+La config et les clés sont gardées dans le volume `kiosque-data` : elles survivent aux mises à jour. Pour mettre à jour le code : pousse sur GitHub, puis **Pull and redeploy** dans la stack.
 
-### Sans Portainer
+> Sur un serveur accessible depuis Internet, crée le mot de passe admin dès le premier lancement : tant qu'il n'existe pas, le premier visiteur peut le choisir. Pour l'imposer à l'avance, utilise la variable `ADMIN_PASSWORD` ci-dessous.
 
-```bash
-cp .env.example .env   # puis remplis-le
-docker compose up -d --build
-```
+## Variables d'environnement (facultatives)
+
+Tout se règle dans la page, mais tu peux aussi tout fixer côté serveur. Une variable définie a la priorité sur la page, et n'y est alors plus modifiable.
+
+| Variable | Rôle |
+| --- | --- |
+| `ADMIN_PASSWORD` | Mot de passe du mode édition |
+| `PANDASCORE_TOKEN` | Clé API PandaScore pour l'e-sport |
+| `PORT` | Port d'écoute, `3010` par défaut |
+| `DATA_DIR` | Dossier de la config et des clés, `data` par défaut (`/app/data` dans Docker) |
+
+En local ou avec Docker Compose, mets-les dans un fichier `.env` (copie de `.env.example`). Dans Portainer, ajoute-les dans **Environment variables** de la stack.
 
 ## Configuration en JSON
 
-Tout ce que fait l'éditeur est enregistré dans `data/config.json`, qu'on peut aussi modifier à la main :
+Tout ce que fait l'éditeur est enregistré dans `data/config.json`, qu'on peut aussi modifier à la main (ou depuis **Réglages → Sauvegarde → Modifier le JSON directement**) :
 
 ```jsonc
 {
@@ -91,14 +160,14 @@ Tout ce que fait l'éditeur est enregistré dans `data/config.json`, qu'on peut 
       ]
     },
     { "name": "Mon app", "type": "iframe", "url": "http://192.168.1.10:8080", "height": 400, "span": 6 }
-  ]
+  ],
+  "secrets": { "pandascoreToken": "…" }   // facultatif : enregistré à part au chargement du fichier
 }
 ```
 
-Les options de chaque type sont visibles (et documentées) dans l'éditeur, ou dans `public/schema.js`.
+Les options de chaque type sont visibles dans l'éditeur, ou décrites dans `public/schema.js`.
 
 ## À savoir
 
-- Certains sites (Google, YouTube, la plupart des banques…) refusent d'être affichés dans une page intégrée.
-- Si Kiosque est servi en `https://`, les pages intégrées en `http://` seront bloquées par le navigateur.
 - Les notes et le record du quiz sont propres à chaque navigateur.
+- Le dossier `data/` et les fichiers `ma-config*.json` sont exclus de Git : ils contiennent ta configuration et tes clés.

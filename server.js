@@ -4,6 +4,7 @@
 import http from 'node:http';
 import https from 'node:https';
 import crypto from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -16,8 +17,6 @@ const DATA_DIR = path.resolve(ROOT, process.env.DATA_DIR || 'data');
 const CONFIG_PATH = path.join(DATA_DIR, 'config.json');
 const DEFAULT_CONFIG_PATH = path.join(ROOT, 'config.default.json');
 const PORT = Number(process.env.PORT) || 3010;
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
-const PANDASCORE_TOKEN = process.env.PANDASCORE_TOKEN || '';
 
 const STATUS_TTL = 15_000;
 const FEED_TTL = 10 * 60_000;
@@ -127,9 +126,63 @@ async function findSection(id, type) {
   return sec;
 }
 
+// ---------------------------------------------------------------- clés et mot de passe
+
+// Les variables d'environnement ont la priorité. Sinon, les valeurs saisies dans la page sont gardées
+// dans data/secrets.json : le mot de passe y est haché (scrypt) et rien n'est jamais renvoyé en clair.
+const SECRETS_PATH = path.join(DATA_DIR, 'secrets.json');
+const MIN_PASSWORD = 8;
+let secrets = {};
+try { secrets = JSON.parse(readFileSync(SECRETS_PATH, 'utf8')); } catch { /* aucun secret enregistré */ }
+
+async function saveSecrets(patch) {
+  const next = { ...secrets, ...patch };
+  for (const [k, v] of Object.entries(next)) if (v == null || v === '') delete next[k];
+  await mkdir(DATA_DIR, { recursive: true });
+  const tmp = `${SECRETS_PATH}.${process.pid}.tmp`;
+  await writeFile(tmp, JSON.stringify(next, null, 2) + '\n', { encoding: 'utf8', mode: 0o600 });
+  await rename(tmp, SECRETS_PATH);
+  secrets = next;
+  memoStore.clear();
+}
+
+const pandascoreToken = () => process.env.PANDASCORE_TOKEN || secrets.pandascoreToken || '';
+const passwordSource = () => (process.env.ADMIN_PASSWORD ? 'env' : secrets.adminHash ? 'page' : null);
+
+function hashPassword(password) {
+  const salt = crypto.randomBytes(16).toString('base64url');
+  return `scrypt:${salt}:${crypto.scryptSync(password, salt, 32).toString('base64url')}`;
+}
+
+function checkPassword(password) {
+  const given = String(password ?? '');
+  if (process.env.ADMIN_PASSWORD) {
+    const hash = (s) => crypto.createHash('sha256').update(s).digest();
+    return crypto.timingSafeEqual(hash(given), hash(process.env.ADMIN_PASSWORD));
+  }
+  const [, salt, expected] = String(secrets.adminHash ?? '').split(':');
+  if (!salt || !expected) return false;
+  const a = crypto.scryptSync(given, salt, 32);
+  const b = Buffer.from(expected, 'base64url');
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+function secretsStatus() {
+  const token = pandascoreToken();
+  return {
+    pandascoreToken: {
+      set: Boolean(token),
+      source: process.env.PANDASCORE_TOKEN ? 'env' : secrets.pandascoreToken ? 'page' : null,
+      hint: token ? `${token.slice(0, 4)}…${token.slice(-4)}` : '',
+    },
+    adminPassword: { source: passwordSource() },
+  };
+}
+
 // ---------------------------------------------------------------- authentification
 
-const sign = (exp) => crypto.createHmac('sha256', `kiosque:${ADMIN_PASSWORD}`).update(String(exp)).digest('base64url');
+// Changer de mot de passe change la clé de signature : les anciennes sessions deviennent invalides.
+const sign = (exp) => crypto.createHmac('sha256', `kiosque:${process.env.ADMIN_PASSWORD || secrets.adminHash || ''}`).update(String(exp)).digest('base64url');
 
 function makeToken() {
   const exp = Date.now() + TOKEN_TTL;
@@ -137,7 +190,7 @@ function makeToken() {
 }
 
 function isAuthenticated(req) {
-  if (!ADMIN_PASSWORD) return false;
+  if (!passwordSource()) return false;
   const [exp, sig] = (req.headers.authorization ?? '').replace(/^Bearer\s+/i, '').split('.');
   if (!exp || !sig || !(Number(exp) > Date.now())) return false;
   const a = Buffer.from(sig);
@@ -146,19 +199,31 @@ function isAuthenticated(req) {
 }
 
 function requireAuth(req) {
-  if (!ADMIN_PASSWORD) throw httpError(403, 'Édition désactivée : définis ADMIN_PASSWORD dans .env');
+  if (!passwordSource()) throw httpError(403, 'Crée d’abord le mot de passe admin (bouton crayon)');
   if (!isAuthenticated(req)) throw httpError(401, 'Session expirée, reconnecte-toi');
+}
+
+function checkNewPassword(value) {
+  const password = String(value ?? '');
+  if (password.length < MIN_PASSWORD) throw httpError(400, `Le mot de passe doit faire au moins ${MIN_PASSWORD} caractères`);
+  return password;
+}
+
+// Premier lancement : tant qu'aucun mot de passe n'existe, la page propose d'en créer un
+async function setup(body) {
+  if (passwordSource()) throw httpError(409, 'Un mot de passe admin existe déjà');
+  await saveSecrets({ adminHash: hashPassword(checkNewPassword(body?.password)) });
+  return { token: makeToken() };
 }
 
 const loginAttempts = new Map();
 async function login(req, body) {
-  if (!ADMIN_PASSWORD) throw httpError(403, 'Édition désactivée : définis ADMIN_PASSWORD dans .env');
+  if (!passwordSource()) throw httpError(409, 'Aucun mot de passe : crée-le d’abord');
   const ip = req.socket.remoteAddress ?? '?';
   const entry = loginAttempts.get(ip) ?? { fails: 0, until: 0 };
   if (entry.until > Date.now()) throw httpError(429, 'Trop d’essais, réessaie dans quelques minutes');
 
-  const hash = (s) => crypto.createHash('sha256').update(String(s)).digest();
-  if (!crypto.timingSafeEqual(hash(body?.password ?? ''), hash(ADMIN_PASSWORD))) {
+  if (!checkPassword(body?.password)) {
     entry.fails++;
     if (entry.fails >= 5) { entry.fails = 0; entry.until = Date.now() + 5 * 60_000; }
     loginAttempts.set(ip, entry);
@@ -167,6 +232,39 @@ async function login(req, body) {
   }
   loginAttempts.delete(ip);
   return { token: makeToken() };
+}
+
+async function updateSecrets(req, body) {
+  requireAuth(req);
+  const patch = {};
+  if (body && 'pandascoreToken' in body) {
+    if (process.env.PANDASCORE_TOKEN) throw httpError(409, 'La clé PandaScore est définie par la variable PANDASCORE_TOKEN');
+    patch.pandascoreToken = String(body.pandascoreToken ?? '').trim() || null;
+  }
+  if (body?.adminPassword !== undefined) {
+    if (process.env.ADMIN_PASSWORD) throw httpError(409, 'Le mot de passe est défini par la variable ADMIN_PASSWORD');
+    if (!checkPassword(body.currentPassword)) throw httpError(403, 'Mot de passe actuel incorrect');
+    patch.adminHash = hashPassword(checkNewPassword(body.adminPassword));
+  }
+  await saveSecrets(patch);
+  return { ...secretsStatus(), token: patch.adminHash ? makeToken() : undefined };
+}
+
+// Une config importée peut contenir ses clés : { ..., "secrets": { "pandascoreToken": "…" } }
+async function importConfig(req, body) {
+  requireAuth(req);
+  const { secrets: incoming, ...cfg } = body ?? {};
+  if (incoming?.pandascoreToken && !process.env.PANDASCORE_TOKEN) {
+    await saveSecrets({ pandascoreToken: String(incoming.pandascoreToken).trim() });
+  }
+  return saveConfig(validateConfig(cfg));
+}
+
+async function exportConfig(req, url) {
+  requireAuth(req);
+  const cfg = await loadConfig();
+  if (url.searchParams.has('secrets') && pandascoreToken()) cfg.secrets = { pandascoreToken: pandascoreToken() };
+  return cfg;
 }
 
 // ---------------------------------------------------------------- cache
@@ -433,10 +531,10 @@ async function fetchGameMatches(game, from, to) {
   for (let page = 1; page <= 3; page++) {
     const url = `https://api.pandascore.co/${encodeURIComponent(game.id)}/matches?sort=begin_at&per_page=100&page=${page}&range[begin_at]=${from},${to}`;
     const res = await fetch(url, {
-      headers: { authorization: `Bearer ${PANDASCORE_TOKEN}`, accept: 'application/json' },
+      headers: { authorization: `Bearer ${pandascoreToken()}`, accept: 'application/json' },
       signal: AbortSignal.timeout(15_000),
     });
-    if (res.status === 401 || res.status === 403) throw httpError(502, 'Clé PandaScore refusée (vérifie PANDASCORE_TOKEN)');
+    if (res.status === 401 || res.status === 403) throw httpError(502, 'Clé PandaScore refusée : vérifie-la dans Réglages → Clés');
     if (!res.ok) throw new Error(`PandaScore ${game.id} : HTTP ${res.status}`);
     const batch = await res.json();
     matches.push(...batch);
@@ -447,7 +545,7 @@ async function fetchGameMatches(game, from, to) {
 
 async function getEsport(sectionId, force) {
   const sec = await findSection(sectionId, 'esport');
-  if (!PANDASCORE_TOKEN) throw httpError(503, 'Ajoute ta clé PandaScore (PANDASCORE_TOKEN) pour voir les matchs');
+  if (!pandascoreToken()) throw httpError(503, 'Ajoute ta clé PandaScore (Réglages → Clés) pour voir les matchs');
 
   return memo(`esport:${sec.id}`, ESPORT_TTL, force, async () => {
     // Fenêtre large : le tri « aujourd'hui » se fait côté navigateur, dans son fuseau horaire.
@@ -504,9 +602,13 @@ async function serveStatic(pathname, res) {
 
 const routes = {
   'GET /api/config': () => loadConfig(),
-  'PUT /api/config': async (req) => { requireAuth(req); return saveConfig(validateConfig(await readJson(req))); },
-  'GET /api/session': (req) => ({ editable: Boolean(ADMIN_PASSWORD), authenticated: isAuthenticated(req), esport: Boolean(PANDASCORE_TOKEN) }),
+  'PUT /api/config': async (req) => importConfig(req, await readJson(req)),
+  'GET /api/export': (req, url) => exportConfig(req, url),
+  'GET /api/session': (req) => ({ needsSetup: !passwordSource(), authenticated: isAuthenticated(req), esport: Boolean(pandascoreToken()) }),
+  'POST /api/setup': async (req) => setup(await readJson(req)),
   'POST /api/login': async (req) => login(req, await readJson(req)),
+  'GET /api/secrets': (req) => { requireAuth(req); return secretsStatus(); },
+  'PUT /api/secrets': async (req) => updateSecrets(req, await readJson(req)),
   'GET /api/status': (req, url) => getStatuses(url.searchParams.has('force')),
   'GET /api/rss': (req, url) => getFeed(url.searchParams.get('url') ?? '', url.searchParams.has('force')),
   'GET /api/youtube': (req, url) => getYoutube(url.searchParams.get('section') ?? '', url.searchParams.has('force')),
@@ -531,6 +633,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Kiosque prêt sur http://localhost:${PORT}`);
-  if (!ADMIN_PASSWORD) console.log('ADMIN_PASSWORD non défini : la page est en lecture seule.');
-  if (!PANDASCORE_TOKEN) console.log('PANDASCORE_TOKEN non défini : les sections e-sport afficheront un message.');
+  if (!passwordSource()) console.log('Aucun mot de passe admin : il sera créé au premier clic sur le crayon.');
+  if (!pandascoreToken()) console.log('Pas de clé PandaScore : à ajouter dans Réglages → Clés pour l’e-sport.');
 });

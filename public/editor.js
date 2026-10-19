@@ -1,10 +1,10 @@
 // Mode édition : connexion admin, panneaux de modification, ajout, suppression et déplacement des sections.
 import { $, $$, h, svg, api, store, renderIcon, toast, modal, ICON_NAMES } from './lib.js';
-import { TYPES, COMMON_FIELDS, GENERAL_FIELDS, ESPORT_GAMES, cleanSection, clean } from './schema.js';
+import { TYPES, COMMON_FIELDS, GENERAL_FIELDS, SECRET_FIELDS, ESPORT_GAMES, cleanSection, clean } from './schema.js';
 
 const TOKEN_KEY = 'kiosque.token';
 let app; // { getConfig(), setConfig(cfg) } fourni par app.js
-let session = { editable: false, authenticated: false };
+let session = { needsSetup: false, authenticated: false };
 let token = store.get(TOKEN_KEY, null);
 let uid = 0;
 
@@ -15,7 +15,7 @@ export async function initEditor(appApi) {
   $('#edit-toggle').addEventListener('click', toggleEdit);
   $('#edit-done').addEventListener('click', exitEdit);
   $('#edit-add').addEventListener('click', () => openNewSection());
-  $('#edit-settings').addEventListener('click', openSettings);
+  $('#edit-settings').addEventListener('click', () => openSettings());
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isEditing() && !$('dialog[open]')) exitEdit();
   });
@@ -38,7 +38,6 @@ export async function initEditor(appApi) {
 
 async function toggleEdit() {
   if (isEditing()) return exitEdit();
-  if (!session.editable) return showSetupHelp();
   if (!(await ensureAuth())) return;
   document.body.classList.add('is-editing');
   $('#edit-bar').hidden = false;
@@ -52,24 +51,27 @@ function exitEdit() {
 }
 
 async function ensureAuth() {
-  if (token) {
-    try {
-      session = await api('/api/session', { token });
-      if (session.authenticated) return true;
-    } catch { /* on redemande le mot de passe */ }
-  }
+  try { session = await api('/api/session', { token }); } catch { /* serveur injoignable : on tente quand même */ }
+  if (session.needsSetup) return createPassword();
+  if (session.authenticated) return true;
   return askPassword();
 }
 
-function askPassword() {
+function setToken(value) {
+  token = value;
+  store.set(TOKEN_KEY, token);
+  session.authenticated = Boolean(token);
+}
+
+// Petite fenêtre de formulaire : renvoie une promesse résolue à true si onSubmit a réussi
+function formModal({ title, icon, text, fields, submitLabel, onSubmit }) {
   return new Promise((resolve) => {
     let ok = false;
-    const input = h('input', { class: 'input', type: 'password', placeholder: 'Mot de passe', autocomplete: 'current-password', required: true });
     const error = h('p', { class: 'form-error', hidden: true });
-    const submit = h('button', { class: 'btn btn-primary', type: 'submit' }, 'Se connecter');
+    const submit = h('button', { class: 'btn btn-primary', type: 'submit' }, submitLabel);
     const form = h('form', { class: 'modal-form' },
-      h('p', { class: 'modal-text' }, 'Entre le mot de passe administrateur pour modifier le dashboard.'),
-      input,
+      h('p', { class: 'modal-text' }, text),
+      fields,
       error,
       h('div', { class: 'modal-actions' },
         h('button', { class: 'btn', type: 'button', onclick: () => dialog.close() }, 'Annuler'),
@@ -80,34 +82,54 @@ function askPassword() {
       submit.disabled = true;
       error.hidden = true;
       try {
-        ({ token } = await api('/api/login', { method: 'POST', body: { password: input.value } }));
-        store.set(TOKEN_KEY, token);
-        session.authenticated = true;
+        await onSubmit();
         ok = true;
         dialog.close();
       } catch (err) {
         error.textContent = err.message;
         error.hidden = false;
-        input.select();
+        fields[0]?.select?.();
       } finally {
         submit.disabled = false;
       }
     });
 
-    const dialog = modal({ title: 'Mode édition', icon: 'lock', body: form });
+    const dialog = modal({ title, icon, body: form });
     dialog.addEventListener('close', () => resolve(ok));
-    input.focus();
+    fields[0]?.focus();
   });
 }
 
-function showSetupHelp() {
-  modal({
-    title: 'Édition désactivée',
+const passwordInput = (placeholder, autocomplete = 'current-password') =>
+  h('input', { class: 'input', type: 'password', placeholder, autocomplete, required: true });
+
+function askPassword() {
+  const input = passwordInput('Mot de passe');
+  return formModal({
+    title: 'Mode édition',
     icon: 'lock',
-    body: h('div', { class: 'modal-form' },
-      h('p', { class: 'modal-text' }, 'Pour modifier le dashboard depuis la page, définis un mot de passe administrateur :'),
-      h('pre', { class: 'code' }, 'ADMIN_PASSWORD=ton-mot-de-passe'),
-      h('p', { class: 'modal-text' }, 'dans le fichier .env (ou dans les variables d’environnement de la stack Portainer), puis redémarre le serveur.')),
+    text: 'Entre le mot de passe administrateur pour modifier le dashboard.',
+    fields: [input],
+    submitLabel: 'Se connecter',
+    onSubmit: async () => setToken((await api('/api/login', { method: 'POST', body: { password: input.value } })).token),
+  });
+}
+
+// Premier lancement : aucun mot de passe n'existe encore
+function createPassword() {
+  const first = passwordInput('Nouveau mot de passe (8 caractères min.)', 'new-password');
+  const second = passwordInput('Confirme le mot de passe', 'new-password');
+  return formModal({
+    title: 'Bienvenue sur Kiosque',
+    icon: 'key',
+    text: 'Choisis le mot de passe qui protégera le mode édition. Tu pourras le changer dans Réglages → Clés & accès.',
+    fields: [first, second],
+    submitLabel: 'Créer et commencer',
+    onSubmit: async () => {
+      if (first.value !== second.value) throw new Error('Les deux mots de passe ne sont pas identiques');
+      setToken((await api('/api/setup', { method: 'POST', body: { password: first.value } })).token);
+      session.needsSetup = false;
+    },
   });
 }
 
@@ -275,19 +297,20 @@ export function openSectionEditor(id, { addItem = false, focusItem } = {}) {
   if (!type) return;
 
   const draft = structuredClone(current);
-  const focus = {};
+  const ctx = { focus: {}, secrets: {} };
   if (addItem) {
     draft.items = [...(draft.items ?? []), { title: '', url: '' }];
-    focus.items = draft.items.length - 1;
+    ctx.focus.items = draft.items.length - 1;
   } else if (focusItem) {
-    focus.items = (draft.items ?? []).findIndex((it) => it.id === focusItem);
+    ctx.focus.items = (draft.items ?? []).findIndex((it) => it.id === focusItem);
   }
 
   const d = drawer({ title: draft.name || type.label, icon: type.icon });
-  d.body.append(...renderFields(draft, [...COMMON_FIELDS, ...type.fields], { focus }));
+  d.body.append(...renderFields(draft, [...COMMON_FIELDS, ...type.fields], ctx));
   formFooter(d, {
     extra: armedButton('trash', 'Supprimer la section', () => { d.dialog.close(); removeSection(id); }, 'icon-btn'),
-    onSave: () => {
+    onSave: async () => {
+      if (!(await saveSecrets(ctx))) return false;
       const next = cloneConfig();
       const i = next.sections.findIndex((s) => s.id === id);
       if (i < 0) return false;
@@ -311,12 +334,14 @@ function openNewSection() {
   function pick(key) {
     const t = TYPES[key];
     const draft = { type: key, ...t.defaults() };
+    const ctx = { focus: {}, secrets: {} };
     d.setTitle(`Nouvelle section · ${t.label}`);
     d.setIcon(t.icon);
-    d.body.replaceChildren(...renderFields(draft, [...COMMON_FIELDS, ...t.fields], { focus: {} }));
+    d.body.replaceChildren(...renderFields(draft, [...COMMON_FIELDS, ...t.fields], ctx));
     formFooter(d, {
       extra: h('button', { class: 'btn', type: 'button', onclick: () => { d.dialog.close(); openNewSection(); } }, 'Retour'),
       onSave: async () => {
+        if (!(await saveSecrets(ctx))) return false;
         const next = cloneConfig();
         next.sections.push(cleanSection(draft));
         const ok = await save(next, `Section « ${draft.name || t.label} » ajoutée`);
@@ -328,69 +353,205 @@ function openNewSection() {
   }
 }
 
-function openSettings() {
+// Enregistre les clés tapées dans les champs « secret » du formulaire (avant la config)
+async function saveSecrets(ctx) {
+  if (!Object.keys(ctx.secrets).length) return true;
+  try {
+    const r = await api('/api/secrets', { method: 'PUT', body: ctx.secrets, token });
+    session.esport = r.pandascoreToken.set;
+    ctx.secrets = {};
+    return true;
+  } catch (err) {
+    if (err.status === 401 && (await askPassword())) return saveSecrets(ctx);
+    toast(err.message, 'error');
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------- réglages
+
+function openSettings(tab = 'general') {
   const d = drawer({ title: 'Réglages', icon: 'sliders' });
   const draft = structuredClone(app.getConfig());
-  const generalKeys = keysOf(GENERAL_FIELDS);
+  const ctx = { focus: {}, secrets: {} };
 
-  // Configuration complète en JSON : sauvegarde, copie vers un autre serveur, import
-  const json = h('textarea', { class: 'input code-input', rows: 12, spellcheck: 'false', 'aria-label': 'Configuration JSON' });
-  json.value = JSON.stringify(app.getConfig(), null, 2);
-  const file = h('input', { type: 'file', accept: 'application/json,.json', hidden: true });
-  file.addEventListener('change', async () => {
-    if (!file.files[0]) return;
-    json.value = await file.files[0].text();
-    toast('Fichier chargé : clique sur « Appliquer » pour l’utiliser');
-  });
-  const exportBtn = h('button', { class: 'btn', type: 'button', html: `${svg('download')}<span>Exporter</span>` });
-  exportBtn.addEventListener('click', () => {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(app.getConfig(), null, 2)], { type: 'application/json' }));
-    h('a', { href: url, download: 'kiosque-config.json' }).click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
-  const importBtn = h('button', { class: 'btn', type: 'button', html: `${svg('upload')}<span>Importer</span>`, onclick: () => file.click() });
-  const applyBtn = h('button', { class: 'btn btn-primary', type: 'button', html: `${svg('check')}<span>Appliquer</span>` });
-  applyBtn.addEventListener('click', async () => {
-    let parsed;
-    try { parsed = JSON.parse(json.value); } catch (err) { toast(`JSON invalide : ${err.message}`, 'error'); return; }
-    if (await save(parsed, 'Configuration appliquée')) d.dialog.close();
-  });
+  const panes = {
+    general: h('div', { class: 'tab-pane' }, renderFields(draft, GENERAL_FIELDS, ctx)),
+    keys: h('div', { class: 'tab-pane' },
+      h('h3', { class: 'pane-title' }, 'Clés API'),
+      h('p', { class: 'pane-text' }, 'Gardées sur le serveur, jamais dans la configuration exportée (sauf si tu le demandes).'),
+      renderFields({}, SECRET_FIELDS, ctx),
+      h('h3', { class: 'pane-title' }, 'Mot de passe admin'),
+      passwordPane()),
+    backup: backupPane(d),
+  };
+  const labels = { general: 'Général', keys: 'Clés & accès', backup: 'Sauvegarde' };
+  const buttons = {};
+  const tabs = h('div', { class: 'tabs', role: 'tablist' }, Object.keys(panes).map((k) => {
+    buttons[k] = h('button', { class: 'tab', type: 'button', role: 'tab', onclick: () => show(k) }, labels[k]);
+    return buttons[k];
+  }));
+
+  function show(k) {
+    for (const [key, pane] of Object.entries(panes)) pane.hidden = key !== k;
+    for (const [key, b] of Object.entries(buttons)) b.setAttribute('aria-selected', String(key === k));
+    d.foot.hidden = k === 'backup'; // la sauvegarde a ses propres boutons
+  }
 
   const logout = h('button', { class: 'btn', type: 'button', html: `${svg('logout')}<span>Se déconnecter</span>` });
   logout.addEventListener('click', () => {
-    token = null;
-    store.set(TOKEN_KEY, null);
-    session.authenticated = false;
+    setToken(null);
     d.dialog.close();
     exitEdit();
     toast('Déconnecté');
   });
 
-  d.body.append(
-    ...renderFields(draft, GENERAL_FIELDS, { focus: {} }),
-    h('details', { class: 'field-group' },
-      h('summary', {}, h('span', { class: 'chev', html: svg('chevron') }), 'Configuration complète (JSON)'),
-      h('div', { class: 'field-group-body' },
-        h('p', { class: 'field-hint' }, 'Exporte-la pour la sauvegarder, ou importe celle d’un autre serveur.'),
-        json,
-        h('div', { class: 'btn-row' }, exportBtn, importBtn, h('span', { class: 'spacer' }), applyBtn),
-        file)));
-
+  d.body.append(tabs, ...Object.values(panes));
   formFooter(d, {
     extra: logout,
-    onSave: () => {
+    onSave: async () => {
+      if (!(await saveSecrets(ctx))) return false;
       const next = cloneConfig();
       const cleaned = clean(draft);
-      for (const k of generalKeys) {
+      for (const k of keysOf(GENERAL_FIELDS)) {
         if (cleaned[k] === undefined) delete next[k]; else next[k] = cleaned[k];
       }
       return save(next, 'Réglages enregistrés');
     },
   });
+  show(tab);
+}
+
+function passwordPane() {
+  const pane = h('div', { class: 'pane-block' }, h('p', { class: 'field-hint' }, 'Chargement…'));
+  api('/api/secrets', { token }).then((s) => {
+    if (s.adminPassword?.source === 'env') {
+      pane.replaceChildren(h('p', { class: 'pane-text' }, 'Défini par la variable d’environnement ADMIN_PASSWORD : modifie-la sur le serveur pour le changer.'));
+      return;
+    }
+    const current = passwordInput('Mot de passe actuel');
+    const next = passwordInput('Nouveau mot de passe (8 caractères min.)', 'new-password');
+    const confirm = passwordInput('Confirme le nouveau mot de passe', 'new-password');
+    const error = h('p', { class: 'form-error', hidden: true });
+    const btn = h('button', { class: 'btn', type: 'button', html: `${svg('key')}<span>Changer le mot de passe</span>` });
+    btn.addEventListener('click', async () => {
+      error.hidden = true;
+      if (next.value !== confirm.value) { error.textContent = 'Les deux mots de passe ne sont pas identiques'; error.hidden = false; return; }
+      btn.disabled = true;
+      try {
+        const r = await api('/api/secrets', { method: 'PUT', body: { currentPassword: current.value, adminPassword: next.value }, token });
+        setToken(r.token);
+        current.value = next.value = confirm.value = '';
+        toast('Mot de passe changé');
+      } catch (err) {
+        error.textContent = err.message;
+        error.hidden = false;
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    pane.replaceChildren(current, next, confirm, error, h('div', { class: 'btn-row' }, btn));
+  }).catch((err) => pane.replaceChildren(h('p', { class: 'form-error' }, err.message)));
+  return pane;
+}
+
+// ---------------------------------------------------------------- sauvegarde : télécharger / charger
+
+function backupPane(d) {
+  const includeKeys = h('input', { id: `f${++uid}`, class: 'switch', type: 'checkbox' });
+  const download = h('button', { class: 'btn btn-primary', type: 'button', html: `${svg('download')}<span>Télécharger ma configuration</span>` });
+  download.addEventListener('click', async () => {
+    download.disabled = true;
+    try {
+      const cfg = await api(`/api/export${includeKeys.checked ? '?secrets' : ''}`, { token });
+      const url = URL.createObjectURL(new Blob([JSON.stringify(cfg, null, 2) + '\n'], { type: 'application/json' }));
+      h('a', { href: url, download: `kiosque-config-${new Date().toISOString().slice(0, 10)}.json` }).click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast('Configuration téléchargée');
+    } catch (err) {
+      toast(err.message, 'error');
+    } finally {
+      download.disabled = false;
+    }
+  });
+
+  const file = h('input', { type: 'file', accept: 'application/json,.json', class: 'visually-hidden' });
+  const preview = h('div', { class: 'import-preview', hidden: true });
+  const drop = h('label', { class: 'dropzone' },
+    h('span', { class: 'dropzone-ico', html: svg('upload') }),
+    h('strong', {}, 'Charger une configuration'),
+    h('span', {}, 'Glisse un fichier .json ici, ou clique pour le choisir'),
+    file);
+  file.addEventListener('change', () => { if (file.files[0]) readConfigFile(file.files[0]); file.value = ''; });
+  drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('is-over'); });
+  drop.addEventListener('dragleave', () => drop.classList.remove('is-over'));
+  drop.addEventListener('drop', (e) => {
+    e.preventDefault();
+    drop.classList.remove('is-over');
+    if (e.dataTransfer.files[0]) readConfigFile(e.dataTransfer.files[0]);
+  });
+
+  async function readConfigFile(f) {
+    let cfg;
+    try {
+      cfg = JSON.parse(await f.text());
+      if (!cfg || typeof cfg !== 'object' || !Array.isArray(cfg.sections)) throw new Error('il manque la liste « sections »');
+      const unknown = cfg.sections.find((s) => !TYPES[s?.type]);
+      if (unknown) throw new Error(`type de section inconnu « ${unknown?.type} »`);
+    } catch (err) {
+      preview.hidden = false;
+      preview.replaceChildren(h('p', { class: 'form-error' }, `Ce fichier n’est pas une configuration Kiosque : ${err.message}`));
+      return;
+    }
+    const apply = h('button', { class: 'btn btn-primary', type: 'button', html: `${svg('check')}<span>Remplacer ma configuration</span>` });
+    apply.addEventListener('click', async () => {
+      apply.disabled = true;
+      if (await save(cfg, `Configuration « ${f.name} » chargée`)) d.dialog.close();
+      apply.disabled = false;
+    });
+    preview.hidden = false;
+    preview.replaceChildren(...[
+      h('div', { class: 'import-head' },
+        h('span', { class: 'card-ico', html: svg('file') }),
+        h('div', {}, h('strong', {}, f.name), h('p', {}, `${cfg.title || 'Sans titre'} · ${cfg.sections.length} section${cfg.sections.length > 1 ? 's' : ''}`))),
+      h('div', { class: 'import-sections' }, cfg.sections.map((s) =>
+        h('span', { class: 'chip', style: s.tint ? { '--tint': s.tint } : {} },
+          renderIcon(s.icon, null, s.name, 'chip-ico'),
+          s.name || TYPES[s.type].label))),
+      cfg.secrets?.pandascoreToken ? h('p', { class: 'field-hint is-ok' }, '✓ Contient une clé PandaScore, elle sera enregistrée aussi.') : null,
+      h('p', { class: 'field-hint' }, 'Ta configuration actuelle sera remplacée : télécharge-la avant si tu veux la garder.'),
+      h('div', { class: 'btn-row' },
+        h('button', { class: 'btn', type: 'button', onclick: () => { preview.hidden = true; } }, 'Annuler'),
+        h('span', { class: 'spacer' }),
+        apply),
+    ].filter(Boolean));
+  }
+
+  // Édition directe du JSON, pour les cas avancés
+  const json = h('textarea', { class: 'input code-input', rows: 12, spellcheck: 'false', 'aria-label': 'Configuration JSON' });
+  json.value = JSON.stringify(app.getConfig(), null, 2);
+  const applyJson = h('button', { class: 'btn', type: 'button', html: `${svg('check')}<span>Appliquer ce JSON</span>` });
+  applyJson.addEventListener('click', async () => {
+    let parsed;
+    try { parsed = JSON.parse(json.value); } catch (err) { toast(`JSON invalide : ${err.message}`, 'error'); return; }
+    if (await save(parsed, 'Configuration appliquée')) d.dialog.close();
+  });
+
+  return h('div', { class: 'tab-pane' },
+    h('h3', { class: 'pane-title' }, 'Enregistrer'),
+    h('p', { class: 'pane-text' }, 'Télécharge toute ta configuration dans un fichier : sections, applications, flux, chaînes…'),
+    h('label', { class: 'field field-toggle', for: includeKeys.id }, h('span', { class: 'field-label' }, 'Inclure les clés API dans le fichier'), includeKeys),
+    h('div', { class: 'btn-row' }, download),
+    h('h3', { class: 'pane-title' }, 'Charger'),
+    drop,
+    preview,
+    h('details', { class: 'field-group' },
+      h('summary', {}, h('span', { class: 'chev', html: svg('chevron') }), 'Modifier le JSON directement'),
+      h('div', { class: 'field-group-body' }, json, h('div', { class: 'btn-row' }, h('span', { class: 'spacer' }), applyJson))));
 }
 
 function keysOf(fields) {
-  return fields.flatMap((f) => (f.row ? keysOf(f.row) : f.group ? keysOf(f.fields) : [f.key]));
+  return fields.flatMap((f) => (f.row ? keysOf(f.row) : f.group ? keysOf(f.fields) : f.type === 'secret' ? [] : [f.key]));
 }
 
 // ---------------------------------------------------------------- génération des formulaires
@@ -404,11 +565,11 @@ function renderFields(obj, fields, ctx) {
         h('div', { class: 'field-group-body' }, renderFields(obj, f.fields, ctx)));
     }
     if (f.type === 'list') return listField(obj, f, ctx);
-    return field(obj, f);
+    return field(obj, f, ctx);
   });
 }
 
-function field(obj, f) {
+function field(obj, f, ctx) {
   const id = `f${++uid}`;
   const value = obj[f.key] ?? f.default;
   const set = (v) => { obj[f.key] = v; };
@@ -461,6 +622,8 @@ function field(obj, f) {
       break;
     case 'ytchannel':
       return channelField(obj, f, id);
+    case 'secret':
+      return secretField(f, ctx, id);
     default: {
       control = h('input', {
         id, class: 'input', type: f.type === 'url' ? 'url' : 'text', 'data-key': f.key,
@@ -549,6 +712,49 @@ function channelField(obj, f, id) {
     h('label', { class: 'field-label', for: id }, f.label),
     h('div', { class: 'input-group' }, input, btn),
     status);
+}
+
+// Clé secrète : affiche seulement si elle est définie (et ses 4 premiers / derniers caractères).
+// Ce qu'on tape va dans ctx.secrets et part sur /api/secrets à l'enregistrement, jamais dans la config.
+function secretField(f, ctx, id) {
+  const input = h('input', { id, class: 'input', type: 'password', autocomplete: 'off', spellcheck: 'false', placeholder: 'Chargement…', disabled: true });
+  const reveal = h('button', { class: 'icon-btn', type: 'button', title: 'Afficher / masquer', 'aria-label': 'Afficher ou masquer la clé', html: svg('eye') });
+  reveal.addEventListener('click', () => { input.type = input.type === 'password' ? 'text' : 'password'; });
+  const remove = h('button', { class: 'btn', type: 'button', hidden: true }, 'Retirer');
+  const status = h('p', { class: 'field-hint' });
+
+  input.addEventListener('input', () => {
+    const v = input.value.trim();
+    if (v) ctx.secrets[f.key] = v; else delete ctx.secrets[f.key];
+  });
+  remove.addEventListener('click', () => {
+    ctx.secrets[f.key] = '';
+    input.value = '';
+    input.placeholder = 'Aucune clé';
+    status.className = 'field-hint';
+    status.textContent = 'La clé sera retirée à l’enregistrement.';
+    remove.hidden = true;
+  });
+
+  api('/api/secrets', { token }).then((all) => {
+    const s = all[f.key] ?? {};
+    if (s.source === 'env') {
+      input.placeholder = `Définie par la variable ${f.env}`;
+      status.textContent = 'Pour la modifier ici, retire d’abord la variable d’environnement du serveur.';
+      return;
+    }
+    input.disabled = false;
+    input.placeholder = s.set ? `Enregistrée (${s.hint}) · tape une nouvelle clé pour la remplacer` : (f.placeholder ?? '');
+    status.textContent = s.set ? '✓ Clé enregistrée' : (f.hint ?? '');
+    status.classList.toggle('is-ok', Boolean(s.set));
+    remove.hidden = !s.set;
+  }).catch((err) => { status.textContent = err.message; status.classList.add('is-error'); });
+
+  return h('div', { class: 'field' },
+    h('label', { class: 'field-label', for: id }, h('span', { class: 'field-label-ico', html: svg('key') }), f.label),
+    h('div', { class: 'input-group' }, input, reveal, remove),
+    status,
+    f.link ? h('a', { class: 'field-link', href: f.link, target: '_blank', rel: 'noopener noreferrer', html: `${f.linkLabel} ${svg('external')}` }) : null);
 }
 
 function listField(obj, f, ctx) {

@@ -14,7 +14,7 @@
       "cols": 3,
       "span": 6,
       "items": [
-        { "id": "github", "title": "GitHub", "description": "Code", "icon": "di:github", "url": "https://github.com" },
+        { "id": "github", "title": "GitHub", "description": "Code", "icon": "di:github-light", "url": "https://github.com" },
         { "id": "wikipedia", "title": "Wikipédia", "description": "Encyclopédie", "icon": "di:wikipedia", "url": "https://fr.wikipedia.org" },
         { "id": "hackernews", "title": "Hacker News", "description": "Actus tech", "icon": "favicon", "url": "https://news.ycombinator.com" },
         { "id": "reddit", "title": "Reddit", "icon": "di:reddit", "url": "https://www.reddit.com" },

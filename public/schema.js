@@ -1,7 +1,8 @@
 // Description des types de section et des champs modifiables dans l'éditeur.
 //
 // Un champ : { key, label, type, default?, hint?, placeholder?, options?, min?, max? }
-// Types : text, url, number, toggle, select, color, icon, checks, list, game, ytchannel
+// Types : text, url, number, toggle, select, color, icon, checks, list, game, ytchannel,
+//         secret (clé gardée sur le serveur, jamais dans la config)
 // Regroupements : { row: [champs] } (côte à côte) et { group: 'Titre', fields: [champs] } (repliable)
 // Une liste : { type: 'list', fields, required, summary, summaryIcon, newItem, addLabel }
 
@@ -165,6 +166,8 @@ export const TYPES = {
       games: ESPORT_GAMES.slice(0, 4).map((g) => ({ id: g.value, name: g.short, color: g.color })),
     }),
     fields: [
+      { key: 'pandascoreToken', label: 'Clé API PandaScore', type: 'secret', env: 'PANDASCORE_TOKEN', placeholder: 'Colle ta clé ici',
+        hint: 'Commune à toutes les sections e-sport, gardée sur le serveur.', link: 'https://app.pandascore.co/', linkLabel: 'Obtenir une clé gratuite' },
       { key: 'tiers', label: 'Niveau des tournois', type: 'checks', default: ['s', 'a'], hint: 'S = plus grands tournois mondiaux.', options: [
         { value: 's', label: 'S' }, { value: 'a', label: 'A' }, { value: 'b', label: 'B' }, { value: 'c', label: 'C' }, { value: 'd', label: 'D' },
       ] },
@@ -220,6 +223,11 @@ export const GENERAL_FIELDS = [
     { key: 'statusCheck', label: 'Vérifier les services', type: 'toggle', default: true },
     { key: 'statusInterval', label: 'Toutes les (s)', type: 'number', min: 10, max: 3600, default: 60 },
   ] },
+];
+
+export const SECRET_FIELDS = [
+  { key: 'pandascoreToken', label: 'Clé PandaScore (e-sport)', type: 'secret', env: 'PANDASCORE_TOKEN', placeholder: 'Colle ta clé ici',
+    hint: 'Nécessaire pour afficher les matchs des sections e-sport.', link: 'https://app.pandascore.co/', linkLabel: 'Obtenir une clé gratuite' },
 ];
 
 // Retire les valeurs vides et les éléments de liste incomplets avant d'enregistrer
