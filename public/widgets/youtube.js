@@ -9,7 +9,7 @@ export function buildYoutube(sec, body, actions, card) {
 
   let videos = [];
   let expanded = false;
-  more.addEventListener('click', () => { expanded = !expanded; render(); });
+  more.addEventListener('click', () => { expanded = !expanded; grid.classList.toggle('is-fitted', false); render(); });
 
   const refresh = iconButton('refresh', 'Actualiser les vidéos', () => load(true));
   actions.append(refresh);
@@ -29,21 +29,101 @@ export function buildYoutube(sec, body, actions, card) {
     }
   }
 
-  function render() {
-    const list = expanded ? videos : videos.slice(0, show);
-    grid.replaceChildren(...(list.length ? list.map((v) => videoCard(v, sec)) : [h('p', { class: 'empty' }, sec.channels?.length ? 'Aucune vidéo récente.' : 'Aucune chaîne. Ajoute-en depuis le mode édition.')]));
-    more.hidden = videos.length <= show;
-    more.innerHTML = expanded ? `Afficher moins ${svg('chevron')}` : `Afficher ${videos.length - show} vidéos de plus ${svg('chevron')}`;
-    more.classList.toggle('is-open', expanded);
+  // Hauteur d'une rangée hors vignette (titre, chaîne), mesurée sur une vidéo affichée.
+  // Chaque vidéo déborde de 6 px de chaque côté de sa case (marge négative pour le survol) :
+  // la case fait 12 px de moins que la vidéo, et la vignette a exactement la largeur de la case.
+  let infoHeight = 72;
+  // (la plus grande parmi les vidéos affichées : certains titres font deux lignes)
+  const measureInfo = () => {
+    const heights = [...grid.querySelectorAll('.video')].map((v) => {
+      const info = v.querySelector('.video-info');
+      return info ? info.getBoundingClientRect().height : 0;
+    });
+    if (heights.length) infoHeight = Math.max(...heights);
+  };
+
+  // Carte de hauteur fixe : on cherche le nombre de colonnes qui remplit le mieux la hauteur
+  // (vignettes plus grandes = rangées plus hautes), sans dépasser le nombre de vidéos disponibles.
+  function fitFixedHeight() {
+    const style = getComputedStyle(grid);
+    const gap = parseFloat(style.columnGap) || 0;
+    const rowGap = parseFloat(style.rowGap) || 0;
+    const width = grid.clientWidth;
+    const buttonSpace = (more.offsetHeight || 36) + (parseFloat(getComputedStyle(more).marginTop) || 16);
+    let best = null;
+    for (let cols = 1; cols <= 8; cols++) {
+      const tile = (width - (cols - 1) * gap) / cols;
+      if (cols > 1 && tile < 170) break;
+      if (tile > 560) continue;
+      const rowHeight = tile * (9 / 16) + infoHeight;
+      for (const withButton of [false, true]) {
+        const space = body.clientHeight - (withButton ? buttonSpace : 0) - 2; // 2 px de marge pour les arrondis
+        const rows = Math.floor((space + rowGap) / (rowHeight + rowGap));
+        if (rows < 1) continue;
+        const count = Math.min(videos.length, rows * cols);
+        if ((videos.length > rows * cols) !== withButton) continue; // bouton seulement s'il reste des vidéos
+        const usedRows = Math.ceil(count / cols);
+        const empty = space - (usedRows * rowHeight + (usedRows - 1) * rowGap); // vide en bas
+        const holes = (usedRows * cols - count) * (rowHeight / cols); // cases vides dans la dernière rangée
+        const score = empty + holes;
+        if (!best || score < best.score) best = { cols, count, score };
+      }
+    }
+    return best;
   }
 
+  // Combien de vidéos afficher (et sur combien de colonnes en hauteur fixe) : toujours des rangées complètes
+  function layout() {
+    if (!grid.isConnected || !videos.length) return show;
+    if (card.classList.contains('has-height') && !card.classList.contains('is-collapsed')) {
+      const fit = fitFixedHeight();
+      if (fit) {
+        grid.style.gridTemplateColumns = `repeat(${fit.cols}, minmax(0, 1fr))`;
+        grid.classList.toggle('is-fitted', !expanded); // les rangées s'étirent pour finir de remplir la carte
+        return fit.count;
+      }
+    }
+    grid.style.removeProperty('grid-template-columns');
+    grid.classList.remove('is-fitted');
+    const cols = Math.max(1, getComputedStyle(grid).gridTemplateColumns.split(' ').length);
+    return Math.min(videos.length, Math.max(cols, Math.ceil(show / cols) * cols));
+  }
+  const visibleCount = () => { measureInfo(); return layout(); };
+
+  let shown = 0;
+  function render(retry = true) {
+    shown = visibleCount();
+    const list = expanded ? videos : videos.slice(0, shown);
+    grid.replaceChildren(...(list.length ? list.map((v) => videoCard(v, sec)) : [h('p', { class: 'empty' }, sec.channels?.length ? 'Aucune vidéo récente.' : 'Aucune chaîne. Ajoute-en depuis le mode édition.')]));
+    more.hidden = videos.length <= shown;
+    more.innerHTML = expanded ? `Afficher moins ${svg('chevron')}` : `Afficher ${videos.length - shown} vidéos de plus ${svg('chevron')}`;
+    more.classList.toggle('is-open', expanded);
+    // la première mesure se fait sur les vidéos rendues : on recale une fois si le compte change
+    if (retry && !expanded && videos.length && visibleCount() !== shown) render(false);
+  }
+
+  // redimensionnement de la carte (poignée, fenêtre, colonnes) : on recalcule le nombre de vidéos
+  let frame;
+  new ResizeObserver(() => {
+    cancelAnimationFrame(frame);
+    frame = requestAnimationFrame(() => { if (!expanded && videos.length && visibleCount() !== shown) render(); });
+  }).observe(body);
+
   load(false);
+}
+
+// Vignette en vrai 16:9 (hq720, en HD) : la vignette « hqdefault » est en 4:3 avec des bandes noires
+// incrustées, qui apparaissent dès que la case n'est plus exactement en 16:9. Repli : mqdefault (16:9, plus petite).
+function thumbnail(v) {
+  const img = h('img', { src: `https://i.ytimg.com/vi/${encodeURIComponent(v.id)}/hq720.jpg`, alt: '', loading: 'lazy', decoding: 'async' });
+  img.addEventListener('error', () => { img.src = `https://i.ytimg.com/vi/${encodeURIComponent(v.id)}/mqdefault.jpg`; }, { once: true });
+  return img;
 }
 
 function videoCard(v, sec) {
   const card = h('a', { class: 'video', href: v.link, target: '_blank', rel: 'noopener noreferrer' },
     h('div', { class: 'thumb' },
-      h('img', { src: v.thumbnail, alt: '', loading: 'lazy', decoding: 'async' }),
+      thumbnail(v),
       h('span', { class: 'thumb-play', html: svg('play') })),
     h('div', { class: 'video-info' },
       h('h3', { title: v.title }, v.title),

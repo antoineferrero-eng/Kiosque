@@ -1718,6 +1718,12 @@ select.input option { background: var(--panel); color: var(--text); }
 .card.has-height .card-body { overflow-y: auto; overscroll-behavior: contain; }
 .card.has-height .feeds { flex: 1; min-height: 0; }
 .card.has-height .links { flex: 1; grid-auto-rows: minmax(min-content, 1fr); align-content: stretch; }
+/* YouTube en hauteur fixe : les rangées remplissent la carte, les vignettes s'allongent un peu (recadrées) */
+.videos.is-fitted { flex: 1; min-height: 0; grid-auto-rows: 1fr; align-content: stretch; padding-bottom: 6px; /* la marge de survol des vidéos du bas */ }
+.videos.is-fitted .video { min-height: 0; }
+.videos.is-fitted .thumb { flex: 1; aspect-ratio: auto; min-height: 60px; }
+/* titres réservés sur deux lignes : toutes les vignettes d'une rangée gardent la même hauteur */
+.videos.is-fitted .video-info h3 { min-height: calc(2 * 1.38em); }
 .card.has-height .quiz { justify-content: space-evenly; }
 
 /* Le quiz grandit avec la largeur de sa carte */
