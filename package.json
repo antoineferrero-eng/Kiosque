@@ -1,0 +1,15 @@
+{
+  "name": "kiosque",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Dashboard auto-hébergé moderne : applications avec statut, actualités, YouTube, e-sport, notes, pages intégrées. Configurable depuis la page.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=20.12"
+  }
+}

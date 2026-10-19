@@ -1,0 +1,119 @@
+{
+  "title": "Kiosque",
+  "openIn": "sametab",
+  "statusCheck": true,
+  "statusInterval": 60,
+  "sections": [
+    {
+      "id": "applications",
+      "name": "Applications",
+      "icon": "i:server",
+      "tint": "#8b9cff",
+      "type": "links",
+      "display": "list",
+      "cols": 3,
+      "span": 6,
+      "items": [
+        { "id": "github", "title": "GitHub", "description": "Code", "icon": "di:github", "url": "https://github.com" },
+        { "id": "wikipedia", "title": "Wikipédia", "description": "Encyclopédie", "icon": "di:wikipedia", "url": "https://fr.wikipedia.org" },
+        { "id": "hackernews", "title": "Hacker News", "description": "Actus tech", "icon": "favicon", "url": "https://news.ycombinator.com" },
+        { "id": "reddit", "title": "Reddit", "icon": "di:reddit", "url": "https://www.reddit.com" },
+        { "id": "cloudflare", "title": "Cloudflare", "icon": "di:cloudflare", "url": "https://www.cloudflare.com" },
+        { "id": "docker-hub", "title": "Docker Hub", "icon": "di:docker", "url": "https://hub.docker.com" }
+      ]
+    },
+    {
+      "id": "raccourcis",
+      "name": "Raccourcis",
+      "icon": "i:zap",
+      "tint": "#38bdf8",
+      "type": "links",
+      "display": "grid",
+      "cols": 3,
+      "span": 3,
+      "statusCheck": false,
+      "items": [
+        { "id": "gmail", "title": "Gmail", "icon": "di:gmail", "url": "https://mail.google.com/" },
+        { "id": "youtube-link", "title": "YouTube", "icon": "di:youtube", "url": "https://www.youtube.com/" },
+        { "id": "music", "title": "Music", "icon": "di:youtube-music", "url": "https://music.youtube.com/" },
+        { "id": "twitch", "title": "Twitch", "icon": "di:twitch", "url": "https://www.twitch.tv/" },
+        { "id": "netflix", "title": "Netflix", "icon": "di:netflix", "url": "https://www.netflix.com/" },
+        { "id": "claude", "title": "Claude", "icon": "favicon", "url": "https://claude.ai/" }
+      ]
+    },
+    {
+      "id": "esport",
+      "name": "E-sport",
+      "icon": "i:trophy",
+      "tint": "#fbbf24",
+      "type": "esport",
+      "span": 3,
+      "tiers": ["s", "a"],
+      "refresh": 300,
+      "games": [
+        { "id": "csgo", "name": "CS2", "color": "#ff9800" },
+        { "id": "lol", "name": "LoL", "color": "#4caf50" },
+        { "id": "valorant", "name": "Valorant", "color": "#b26bff" },
+        { "id": "rl", "name": "Rocket League", "color": "#3b9dff" }
+      ]
+    },
+    {
+      "id": "actualites",
+      "name": "Actualités",
+      "icon": "i:newspaper",
+      "tint": "#fb7185",
+      "type": "rss",
+      "span": 9,
+      "maxHeight": 420,
+      "limit": 20,
+      "feeds": [
+        { "name": "Les Numériques", "url": "https://www.lesnumeriques.com/rss.xml" },
+        { "name": "The Verge", "url": "https://www.theverge.com/rss/index.xml" },
+        { "name": "Le Monde Informatique", "url": "https://www.lemondeinformatique.fr/flux-rss/rss.xml", "icon": "https://media.muckrack.com/groups/icons/Le_Monde_Informatique.png" }
+      ]
+    },
+    {
+      "id": "pays",
+      "name": "Devine le pays",
+      "icon": "i:flag",
+      "tint": "#34d399",
+      "type": "flags",
+      "span": 3,
+      "spanMd": 12
+    },
+    {
+      "id": "youtube",
+      "name": "YouTube",
+      "icon": "i:youtube",
+      "tint": "#f87171",
+      "type": "youtube",
+      "span": 9,
+      "spanMd": 12,
+      "limit": 16,
+      "show": 8,
+      "perChannel": 2,
+      "hideShorts": true,
+      "player": "modal",
+      "channels": [
+        { "name": "Les Numériques", "id": "UCqRSWOqkW_oelrdUN7KQ-aQ" },
+        { "name": "Frandroid", "id": "UCgoxc-VKU0cw9BcM9z_qokg" },
+        { "name": "Micode", "id": "UCYnvxJ-PKiGXo_tYXpWAC-w" },
+        { "name": "Underscore_", "id": "UCWedHS9qKebauVIK2J7383g" },
+        { "name": "Marques Brownlee", "id": "UCBJycsmduvYEL83R_U4JriQ" },
+        { "name": "The Verge", "id": "UCddiUEpeqJcYeBxX1IVBKvQ" },
+        { "name": "JerryRigEverything", "id": "UCWFKCr40YwOZQx8FHU_ZqqQ" },
+        { "name": "Gamers Nexus", "id": "UChIs72whgZI9w6d6FhwGGHA" }
+      ]
+    },
+    {
+      "id": "notes",
+      "name": "Notes",
+      "icon": "i:note",
+      "tint": "#a78bfa",
+      "type": "notes",
+      "span": 3,
+      "spanMd": 12,
+      "minHeight": 320
+    }
+  ]
+}

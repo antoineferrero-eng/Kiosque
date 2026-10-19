@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Kiosque</title>
+  <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%238b9cff'/%3E%3Crect x='7' y='7' width='8' height='8' rx='2' fill='%2307080d'/%3E%3Crect x='17' y='7' width='8' height='8' rx='2' fill='%2307080d' opacity='.6'/%3E%3Crect x='7' y='17' width='8' height='8' rx='2' fill='%2307080d' opacity='.6'/%3E%3Crect x='17' y='17' width='8' height='8' rx='2' fill='%2307080d'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="/styles.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <div class="backdrop" aria-hidden="true"></div>
+
+  <div class="shell">
+    <header class="topbar">
+      <div class="hello">
+        <p class="date" id="date"></p>
+        <h1 id="greeting">Bonjour</h1>
+      </div>
+      <div class="top-meta">
+        <button class="health" id="health" type="button" data-state="pending" title="Revérifier tous les services">
+          <span class="health-dot"></span>
+          <span id="health-label">Vérification…</span>
+        </button>
+        <time class="clock" id="clock">--:--</time>
+        <button class="icon-btn edit-toggle" id="edit-toggle" type="button" aria-pressed="false" title="Personnaliser le dashboard" aria-label="Personnaliser le dashboard">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"/><path d="m15 5 4 4"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="grid" id="grid">
+      <div class="card skeleton-card" style="--span:6"></div>
+      <div class="card skeleton-card" style="--span:3"></div>
+      <div class="card skeleton-card" style="--span:3"></div>
+    </main>
+  </div>
+
+  <div class="edit-bar" id="edit-bar" hidden>
+    <span class="edit-bar-label"><span class="edit-dot"></span>Mode édition</span>
+    <button class="btn" id="edit-add" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+      <span>Section</span>
+    </button>
+    <button class="btn" id="edit-settings" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7h-9"/><path d="M14 17H5"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
+      <span>Réglages</span>
+    </button>
+    <button class="btn btn-primary" id="edit-done" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+      <span>Terminer</span>
+    </button>
+  </div>
+</body>
+</html>

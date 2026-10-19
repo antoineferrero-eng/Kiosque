@@ -1,0 +1,17 @@
+services:
+  kiosque:
+    build: .
+    image: kiosque:latest
+    container_name: kiosque
+    restart: unless-stopped
+    ports:
+      - "3010:3010"
+    environment:
+      # Valeurs lues dans .env (Docker Compose) ou dans les variables de la stack (Portainer)
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - PANDASCORE_TOKEN=${PANDASCORE_TOKEN:-}
+    volumes:
+      - kiosque-data:/app/data
+
+volumes:
+  kiosque-data:
