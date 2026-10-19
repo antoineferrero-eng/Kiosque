@@ -4,6 +4,14 @@ import { buildEsport } from './widgets/esport.js';
 import { buildYoutube } from './widgets/youtube.js';
 import { buildFlags } from './widgets/flags.js';
 import { buildNotes } from './widgets/notes.js';
+import { buildWeather } from './widgets/weather.js';
+import { buildRadio } from './widgets/radio.js';
+import { buildFreeGames, buildDeals } from './widgets/games.js';
+import { buildLaunches } from './widgets/space.js';
+import { buildCrypto } from './widgets/crypto.js';
+import { buildEphemeris, buildWebStatus, buildFun } from './widgets/daily.js';
+import { buildPokemon } from './widgets/pokemon.js';
+import { buildCountdown } from './widgets/countdown.js';
 
 const BUILDERS = {
   links: buildLinks,
@@ -13,6 +21,17 @@ const BUILDERS = {
   youtube: buildYoutube,
   flags: buildFlags,
   notes: buildNotes,
+  weather: buildWeather,
+  radio: buildRadio,
+  freegames: buildFreeGames,
+  deals: buildDeals,
+  launches: buildLaunches,
+  crypto: buildCrypto,
+  ephemeris: buildEphemeris,
+  pokemon: buildPokemon,
+  webstatus: buildWebStatus,
+  countdown: buildCountdown,
+  fun: buildFun,
 };
 
 let config;

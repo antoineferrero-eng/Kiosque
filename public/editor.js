@@ -694,6 +694,7 @@ function renderFields(obj, fields, ctx) {
         h('div', { class: 'field-group-body' }, renderFields(obj, f.fields, ctx)));
     }
     if (f.type === 'list') return listField(obj, f, ctx);
+    if (f.type === 'note') return h('p', { class: 'field-hint form-note' }, f.text);
     return field(obj, f, ctx);
   });
 }
@@ -755,6 +756,14 @@ function field(obj, f, ctx) {
       return secretField(f, ctx, id);
     case 'theme':
       return themeField(obj, f);
+    case 'radiosearch':
+      return radioSearchField(f, ctx, id);
+    case 'datetime': {
+      control = h('input', { id, class: 'input', type: 'datetime-local', 'data-key': f.key });
+      control.value = obj[f.key] ?? '';
+      control.addEventListener('input', () => set(control.value || undefined));
+      break;
+    }
     default: {
       control = h('input', {
         id, class: 'input', type: f.type === 'url' ? 'url' : 'text', 'data-key': f.key,
@@ -909,6 +918,50 @@ function themeField(obj, f) {
     h('p', { class: 'field-hint' }, 'Aperçu immédiat. Enregistre pour le garder.'));
 }
 
+// Recherche dans l'annuaire Radio Browser : un clic sur un résultat l'ajoute à la liste ctx.lists[f.target]
+function radioSearchField(f, ctx, id) {
+  const input = h('input', { id, class: 'input', type: 'search', placeholder: 'FIP, lofi, jazz, Skyrock…', spellcheck: 'false' });
+  const btn = h('button', { class: 'btn', type: 'button', html: `${svg('search')}<span>Chercher</span>` });
+  const results = h('div', { class: 'radio-results' });
+  const hint = h('p', { class: 'field-hint' }, 'Cherche une radio par son nom ou un style de musique, puis clique pour l’ajouter.');
+
+  async function search() {
+    const q = input.value.trim();
+    if (!q) return;
+    btn.disabled = true;
+    hint.textContent = 'Recherche…';
+    try {
+      const found = await api(`/api/radio/search?q=${encodeURIComponent(q)}`, { token });
+      hint.textContent = found.length ? `${found.length} radio${found.length > 1 ? 's' : ''} trouvée${found.length > 1 ? 's' : ''}` : 'Aucune radio trouvée.';
+      results.replaceChildren(...found.map((r) => {
+        const already = ctx.lists?.[f.target]?.has((s) => s.url === r.url);
+        const item = h('button', { class: `radio-result${already ? ' is-added' : ''}`, type: 'button', title: r.tags || r.name },
+          renderIcon(r.favicon || 'i:radio', null, r.name, 'ico'),
+          h('span', { class: 'radio-result-text' }, h('strong', {}, r.name), h('small', {}, [r.country, r.codec, r.bitrate ? `${r.bitrate} kb/s` : '', r.tags].filter(Boolean).join(' · '))),
+          h('span', { class: 'radio-result-add', html: svg(already ? 'check' : 'plus') }));
+        item.addEventListener('click', () => {
+          if (item.classList.contains('is-added')) return;
+          ctx.lists?.[f.target]?.add({ name: r.name, url: r.url, favicon: r.favicon || undefined });
+          item.classList.add('is-added');
+          item.querySelector('.radio-result-add').innerHTML = svg('check');
+        });
+        return item;
+      }));
+    } catch (err) {
+      hint.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  btn.addEventListener('click', search);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); search(); } });
+  return h('div', { class: 'field' },
+    h('label', { class: 'field-label', for: id }, f.label),
+    h('div', { class: 'input-group' }, input, btn),
+    hint,
+    results);
+}
+
 function listField(obj, f, ctx) {
   if (!Array.isArray(obj[f.key])) obj[f.key] = [];
   const items = obj[f.key];
@@ -966,6 +1019,16 @@ function listField(obj, f, ctx) {
     last?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     last?.querySelector('input, select')?.focus();
   });
+
+  ctx.lists ??= {};
+  ctx.lists[f.key] = {
+    add(item) {
+      items.push(item);
+      render(items.length - 1);
+      list.lastElementChild?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    },
+    has: (predicate) => items.some(predicate),
+  };
 
   const focusIndex = ctx.focus?.[f.key] ?? -1;
   render(focusIndex);

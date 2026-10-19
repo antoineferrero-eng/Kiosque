@@ -2,7 +2,8 @@
 //
 // Un champ : { key, label, type, default?, hint?, placeholder?, options?, min?, max? }
 // Types : text, url, number, toggle, select, color, icon, checks, list, game, ytchannel,
-//         secret (clé gardée sur le serveur, jamais dans la config), theme
+//         secret (clé gardée sur le serveur, jamais dans la config), theme, datetime,
+//         radiosearch (recherche de radios qui remplit la liste `target`), note (simple texte d'aide)
 // Regroupements : { row: [champs] } (côte à côte) et { group: 'Titre', fields: [champs] } (repliable)
 // Une liste : { type: 'list', fields, required, summary, summaryIcon, newItem, addLabel }
 
@@ -200,6 +201,201 @@ export const TYPES = {
     defaults: () => ({ name: 'Notes', icon: 'i:note', tint: '#a78bfa', span: 3 }),
     fields: [
       { key: 'maxHeight', label: 'Hauteur max de la liste (px)', type: 'number', min: 150, max: 1200, default: 360 },
+    ],
+  },
+
+  weather: {
+    label: 'Météo',
+    description: 'Température, prochaines heures et 5 jours pour la ville de ton choix.',
+    icon: 'cloud-sun',
+    defaults: () => ({ name: 'Météo', icon: 'i:cloud-sun', tint: '#60a5fa', span: 3, city: 'Paris' }),
+    fields: [
+      { key: 'city', label: 'Ville', type: 'text', placeholder: 'Paris', hint: 'Le nom suffit, ex. « Lyon » ou « Montréal ».' },
+      { row: [
+        { key: 'hours', label: 'Heures affichées', type: 'number', min: 3, max: 24, default: 12 },
+        { key: 'days', label: 'Jours affichés', type: 'number', min: 1, max: 5, default: 5 },
+      ] },
+    ],
+  },
+
+  radio: {
+    label: 'Radio',
+    description: 'Lecteur de radios en direct : FIP, lofi, jazz… et recherche parmi 50 000 stations.',
+    icon: 'radio',
+    defaults: () => ({ name: 'Radio', icon: 'i:radio', tint: '#f472b6', span: 3, stations: [] }),
+    fields: [
+      { key: 'search', label: 'Ajouter une radio', type: 'radiosearch', target: 'stations' },
+      {
+        key: 'stations', label: 'Stations', type: 'list', addLabel: 'Ajouter un flux à la main',
+        required: 'url',
+        summary: (s) => s.name || s.url,
+        summaryIcon: (s) => s.favicon || 'i:radio',
+        newItem: () => ({ name: '', url: '' }),
+        fields: [
+          { key: 'name', label: 'Nom', type: 'text' },
+          { key: 'url', label: 'Adresse du flux audio', type: 'url', placeholder: 'https://…/flux.mp3' },
+          { key: 'favicon', label: 'Logo', type: 'icon' },
+        ],
+      },
+      { type: 'note', text: 'Sans station, le lecteur propose FIP, FIP Groove, FIP Electro, Mouv’ et une radio lofi.' },
+    ],
+  },
+
+  freegames: {
+    label: 'Jeux gratuits',
+    description: 'Jeux offerts en ce moment sur Epic Games, Steam, GOG…',
+    icon: 'gift',
+    defaults: () => ({ name: 'Jeux gratuits', icon: 'i:gift', tint: '#a3e635', span: 6, sources: ['epic', 'steam', 'gog'], limit: 8 }),
+    fields: [
+      { key: 'sources', label: 'Boutiques', type: 'checks', default: ['epic', 'steam', 'gog'], options: [
+        { value: 'epic', label: 'Epic' }, { value: 'steam', label: 'Steam' }, { value: 'gog', label: 'GOG' },
+        { value: 'ubisoft', label: 'Ubisoft' }, { value: 'itchio', label: 'itch.io' }, { value: 'ps4', label: 'PlayStation' },
+        { value: 'xbox-one', label: 'Xbox' }, { value: 'switch', label: 'Switch' },
+      ] },
+      { key: 'limit', label: 'Jeux affichés', type: 'number', min: 1, max: 30, default: 12 },
+    ],
+  },
+
+  deals: {
+    label: 'Bons plans PC',
+    description: 'Les meilleures promos de jeux PC du moment (prix en dollars).',
+    icon: 'tag',
+    defaults: () => ({ name: 'Bons plans', icon: 'i:tag', tint: '#fb923c', span: 3, stores: ['1', '7', '25', '11'], maxPrice: 20, limit: 8 }),
+    fields: [
+      { key: 'stores', label: 'Boutiques', type: 'checks', default: ['1', '7', '25', '11'], options: [
+        { value: '1', label: 'Steam' }, { value: '7', label: 'GOG' }, { value: '25', label: 'Epic' }, { value: '11', label: 'Humble' },
+        { value: '3', label: 'GreenManGaming' }, { value: '15', label: 'Fanatical' }, { value: '13', label: 'Ubisoft' }, { value: '30', label: 'IndieGala' },
+      ] },
+      { row: [
+        { key: 'maxPrice', label: 'Prix max ($)', type: 'number', min: 0, max: 100, default: 20 },
+        { key: 'minRating', label: 'Note Steam min (%)', type: 'number', min: 0, max: 100, placeholder: 'Aucune' },
+      ] },
+      { row: [
+        { key: 'limit', label: 'Promos affichées', type: 'number', min: 1, max: 30, default: 12 },
+        { key: 'sort', label: 'Trier par', type: 'select', default: 'Deal Rating', options: [
+          { value: 'Deal Rating', label: 'Meilleure affaire' }, { value: 'Savings', label: 'Plus grosse réduction' },
+          { value: 'Price', label: 'Prix' }, { value: 'Recent', label: 'Plus récentes' }, { value: 'Reviews', label: 'Mieux notés' },
+        ] },
+      ] },
+    ],
+  },
+
+  launches: {
+    label: 'Lancements spatiaux',
+    description: 'Prochains décollages de fusées avec compte à rebours.',
+    icon: 'rocket',
+    defaults: () => ({ name: 'Lancements', icon: 'i:rocket', tint: '#818cf8', span: 3, limit: 5 }),
+    fields: [
+      { row: [
+        { key: 'limit', label: 'Lancements affichés', type: 'number', min: 1, max: 10, default: 6 },
+        { key: 'provider', label: 'Seulement', type: 'select', options: [
+          { value: '', label: 'Toutes les agences' }, { value: 'SpaceX', label: 'SpaceX' }, { value: 'Rocket Lab', label: 'Rocket Lab' },
+          { value: 'Arianespace', label: 'Arianespace' }, { value: 'National Aeronautics and Space Administration', label: 'NASA' },
+          { value: 'China Aerospace Science and Technology Corporation', label: 'Chine (CASC)' }, { value: 'Blue Origin', label: 'Blue Origin' },
+        ] },
+      ] },
+    ],
+  },
+
+  crypto: {
+    label: 'Crypto',
+    description: 'Cours, variation sur 24 h et mini-graphique sur 7 jours.',
+    icon: 'trend',
+    defaults: () => ({ name: 'Crypto', icon: 'i:trend', tint: '#facc15', span: 3, currency: 'eur', coins: [{ id: 'bitcoin' }, { id: 'ethereum' }, { id: 'solana' }] }),
+    fields: [
+      { key: 'currency', label: 'Devise', type: 'select', default: 'eur', options: [{ value: 'eur', label: 'Euro (€)' }, { value: 'usd', label: 'Dollar ($)' }, { value: 'gbp', label: 'Livre (£)' }, { value: 'chf', label: 'Franc suisse' }] },
+      {
+        key: 'coins', label: 'Cryptomonnaies', type: 'list', addLabel: 'Ajouter une cryptomonnaie',
+        required: 'id',
+        summary: (c) => c.id,
+        newItem: () => ({ id: '' }),
+        fields: [{ key: 'id', label: 'Identifiant CoinGecko', type: 'text', placeholder: 'bitcoin', hint: 'Le nom dans l’adresse de la page CoinGecko : bitcoin, ethereum, dogecoin, ripple…' }],
+      },
+    ],
+  },
+
+  ephemeris: {
+    label: 'Éphéméride',
+    description: 'Image du jour et « ce jour-là dans l’histoire », d’après Wikipédia.',
+    icon: 'book',
+    defaults: () => ({ name: 'Éphéméride', icon: 'i:book', tint: '#2dd4bf', span: 6 }),
+    fields: [
+      { row: [
+        { key: 'limit', label: 'Événements affichés', type: 'number', min: 1, max: 12, default: 5 },
+        { key: 'showImage', label: 'Image du jour', type: 'toggle', default: true },
+      ] },
+    ],
+  },
+
+  pokemon: {
+    label: 'Qui est ce Pokémon ?',
+    description: 'Quiz : retrouve le Pokémon caché derrière la silhouette.',
+    icon: 'pokeball',
+    defaults: () => ({ name: 'Qui est ce Pokémon ?', icon: 'i:pokeball', tint: '#f87171', span: 3, generations: 3 }),
+    fields: [
+      { key: 'generations', label: 'Jusqu’à la génération', type: 'select', number: true, default: 3, options: [
+        { value: 1, label: '1 (151 Pokémon)' }, { value: 2, label: '2 (251)' }, { value: 3, label: '3 (386)' }, { value: 4, label: '4 (493)' },
+        { value: 5, label: '5 (649)' }, { value: 6, label: '6 (721)' }, { value: 7, label: '7 (809)' }, { value: 8, label: '8 (905)' }, { value: 9, label: '9 (1025)' },
+      ] },
+    ],
+  },
+
+  webstatus: {
+    label: 'État des services web',
+    description: 'GitHub, Discord, Cloudflare… sont-ils en panne ?',
+    icon: 'activity',
+    defaults: () => ({ name: 'Services web', icon: 'i:activity', tint: '#34d399', span: 3, services: [] }),
+    fields: [
+      { type: 'note', text: 'Sans service, la liste suit GitHub, Discord, Cloudflare, OpenAI, Reddit et Twitch.' },
+      {
+        key: 'services', label: 'Services', type: 'list', addLabel: 'Ajouter un service',
+        required: 'url',
+        summary: (s) => s.name || s.url,
+        newItem: () => ({ name: '', url: '' }),
+        fields: [
+          { key: 'name', label: 'Nom', type: 'text', placeholder: 'GitHub' },
+          { key: 'url', label: 'Page de statut', type: 'url', placeholder: 'https://www.githubstatus.com', hint: 'Fonctionne avec les pages de statut « Statuspage » (la plupart des grands services).' },
+        ],
+      },
+    ],
+  },
+
+  countdown: {
+    label: 'Comptes à rebours',
+    description: 'Jours, heures et minutes avant tes événements.',
+    icon: 'hourglass',
+    defaults: () => ({ name: 'Bientôt', icon: 'i:hourglass', tint: '#c084fc', span: 3, events: [] }),
+    fields: [
+      { key: 'showPast', label: 'Garder les événements passés', type: 'toggle' },
+      {
+        key: 'events', label: 'Événements', type: 'list', addLabel: 'Ajouter un événement',
+        required: 'date',
+        summary: (e) => [e.emoji, e.name].filter(Boolean).join(' ') || e.date,
+        newItem: () => ({ name: '', date: '', emoji: '🎉' }),
+        fields: [
+          { row: [
+            { key: 'name', label: 'Nom', type: 'text', placeholder: 'Sortie de GTA VI' },
+            { key: 'emoji', label: 'Emoji', type: 'text', placeholder: '🎮' },
+          ] },
+          { row: [
+            { key: 'date', label: 'Date et heure', type: 'datetime' },
+            { key: 'yearly', label: 'Chaque année', type: 'toggle' },
+          ] },
+        ],
+      },
+      { type: 'note', text: 'Sans événement, le widget affiche Halloween, Noël et le Nouvel An.' },
+    ],
+  },
+
+  fun: {
+    label: 'Pour rire',
+    description: 'Répliques de Kaamelott et blagues, en français.',
+    icon: 'smile',
+    defaults: () => ({ name: 'Pour rire', icon: 'i:smile', tint: '#fbbf24', span: 3, source: 'mix' }),
+    fields: [
+      { key: 'source', label: 'Contenu', type: 'select', default: 'mix', options: [
+        { value: 'mix', label: 'Un peu de tout' }, { value: 'kaamelott', label: 'Répliques de Kaamelott' }, { value: 'joke', label: 'Blagues' },
+      ] },
     ],
   },
 
