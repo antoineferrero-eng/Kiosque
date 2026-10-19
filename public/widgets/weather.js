@@ -1,5 +1,5 @@
 // Météo du moment, prochaines heures et 5 jours (Open-Meteo via /api/data).
-import { h, svg, dataWidget } from '../lib.js';
+import { h, svg, dataWidget, horizontalScroll } from '../lib.js';
 
 // Codes météo WMO → libellé, icône de jour, icône de nuit
 const WMO = [
@@ -45,14 +45,14 @@ export function buildWeather(sec, body, actions, card) {
             h('span', { html: `${svg('droplet')}${w.current.humidity} %` }),
             w.sunrise ? h('span', { class: 'wx-sun', html: `${svg('sun')}${fmtTime.format(new Date(w.sunrise))} – ${fmtTime.format(new Date(w.sunset))}` }) : null)),
 
-        h('div', { class: 'wx-hours', role: 'list', 'aria-label': 'Prochaines heures' }, w.hourly.slice(0, sec.hours || 12).map((hr, i) => {
+        horizontalScroll(h('div', { class: 'wx-hours', role: 'list', tabindex: '0', 'aria-label': 'Prochaines heures (molette ou flèches pour défiler)' }, w.hourly.slice(0, sec.hours || 24).map((hr, i) => {
           const d = describeWeather(hr.code, hr.isDay);
           return h('div', { class: 'wx-hour', role: 'listitem', title: d.label },
             h('span', {}, i === 0 ? 'Maint.' : `${hr.time.slice(11, 13)}h`),
             icon(d.icon, 'wx-mini'),
             h('strong', {}, deg(hr.temp)),
             h('small', { class: hr.rain >= 30 ? 'is-wet' : '' }, hr.rain ? `${hr.rain}%` : ''));
-        })),
+        }))),
 
         h('div', { class: 'wx-days' }, days.map((d) => {
           const desc = describeWeather(d.code);

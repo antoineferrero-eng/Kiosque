@@ -30,7 +30,7 @@ const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
 const SECTION_TYPES = new Set([
   'links', 'rss', 'iframe', 'esport', 'youtube', 'flags', 'notes',
-  'weather', 'radio', 'freegames', 'deals', 'launches', 'crypto', 'ephemeris', 'pokemon', 'webstatus', 'countdown', 'fun',
+  'weather', 'radio', 'freegames', 'deals', 'launches', 'crypto', 'ephemeris', 'pokemon', 'webstatus', 'countdown', 'fun', 'timer',
 ]);
 
 const MIME = {

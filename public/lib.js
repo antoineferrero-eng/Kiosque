@@ -209,6 +209,51 @@ export function dataWidget({ sec, body, actions, card, refresh = 600, render, la
   return { reload: load };
 }
 
+// Bande horizontale : la molette la fait défiler sur le côté quand la souris est dessus (la page reprend
+// la main aux deux bouts), on peut aussi la glisser à la souris. Les classes can-left / can-right
+// indiquent s'il reste du contenu de chaque côté (pour les fondus).
+export function horizontalScroll(el) {
+  const edges = () => {
+    const max = el.scrollWidth - el.clientWidth;
+    el.classList.toggle('can-left', el.scrollLeft > 2);
+    el.classList.toggle('can-right', el.scrollLeft < max - 2);
+  };
+  // on vise une destination : pendant une animation fluide, les crans suivants s'y ajoutent
+  let target = null;
+  el.addEventListener('wheel', (e) => {
+    const max = el.scrollWidth - el.clientWidth;
+    if (max <= 0 || e.ctrlKey) return;
+    const delta = (Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY) * (e.deltaMode === 1 ? 32 : 1);
+    const from = target != null && Math.abs(target - el.scrollLeft) > 1 ? target : el.scrollLeft;
+    // au bout (à 2 px près : la largeur max n'est pas toujours un nombre entier), la page défile
+    if ((delta < 0 && from <= 2) || (delta > 0 && from >= max - 2)) return;
+    e.preventDefault();
+    target = Math.min(max, Math.max(0, from + delta));
+    el.scrollTo({ left: target, behavior: 'smooth' });
+  }, { passive: false });
+
+  let drag = null;
+  el.addEventListener('pointerdown', (e) => {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    drag = { x: e.clientX, left: el.scrollLeft, moved: false };
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    if (!drag.moved && Math.abs(dx) < 4) return;
+    if (!drag.moved) { drag.moved = true; el.setPointerCapture(e.pointerId); el.classList.add('is-dragging'); }
+    el.scrollLeft = drag.left - dx;
+  });
+  const stop = () => { drag = null; el.classList.remove('is-dragging'); };
+  el.addEventListener('pointerup', stop);
+  el.addEventListener('pointercancel', stop);
+
+  el.addEventListener('scroll', edges, { passive: true });
+  new ResizeObserver(edges).observe(el);
+  requestAnimationFrame(edges);
+  return el;
+}
+
 // ---------------------------------------------------------------- dates
 
 const relTime = new Intl.RelativeTimeFormat('fr', { numeric: 'auto' });

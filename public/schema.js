@@ -212,7 +212,7 @@ export const TYPES = {
     fields: [
       { key: 'city', label: 'Ville', type: 'text', placeholder: 'Paris', hint: 'Le nom suffit, ex. « Lyon » ou « Montréal ».' },
       { row: [
-        { key: 'hours', label: 'Heures affichées', type: 'number', min: 3, max: 24, default: 12 },
+        { key: 'hours', label: 'Heures affichées', type: 'number', min: 3, max: 24, default: 24 },
         { key: 'days', label: 'Jours affichés', type: 'number', min: 1, max: 5, default: 5 },
       ] },
     ],
@@ -396,6 +396,21 @@ export const TYPES = {
       { key: 'source', label: 'Contenu', type: 'select', default: 'mix', options: [
         { value: 'mix', label: 'Un peu de tout' }, { value: 'kaamelott', label: 'Répliques de Kaamelott' }, { value: 'joke', label: 'Blagues' },
       ] },
+    ],
+  },
+
+  timer: {
+    label: 'Minuteur',
+    description: 'Minuteur avec sonnerie, et historique des derniers temps à relancer en un clic.',
+    icon: 'clock',
+    defaults: () => ({ name: 'Minuteur', icon: 'i:clock', tint: '#22d3ee', span: 3, history: 2 }),
+    fields: [
+      { key: 'history', label: 'Temps gardés dans l’historique', type: 'number', min: 1, max: 10, default: 2 },
+      { row: [
+        { key: 'sound', label: 'Sonnerie à la fin', type: 'toggle', default: true },
+        { key: 'notify', label: 'Notification', type: 'toggle', default: true },
+      ] },
+      { type: 'note', text: 'La notification s’affiche quand l’onglet n’est pas au premier plan (le navigateur demande l’autorisation au premier lancement).' },
     ],
   },
 

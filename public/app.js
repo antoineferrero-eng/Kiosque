@@ -12,6 +12,7 @@ import { buildCrypto } from './widgets/crypto.js';
 import { buildEphemeris, buildWebStatus, buildFun } from './widgets/daily.js';
 import { buildPokemon } from './widgets/pokemon.js';
 import { buildCountdown } from './widgets/countdown.js';
+import { buildTimer } from './widgets/timer.js';
 
 const BUILDERS = {
   links: buildLinks,
@@ -32,6 +33,7 @@ const BUILDERS = {
   webstatus: buildWebStatus,
   countdown: buildCountdown,
   fun: buildFun,
+  timer: buildTimer,
 };
 
 let config;

@@ -57,10 +57,10 @@ export function buildPokemon(sec, body, actions) {
   async function round() {
     state.locked = true;
     try {
-      const q = await (state.next ?? prepare());
+      const q = (await state.next) ?? (await prepare()); // si la préparation d'avance a échoué, on en refait une
       state.next = prepare().catch(() => null); // la suivante se prépare pendant qu'on joue
+      img.className = 'poke-img is-hidden'; // d'abord la silhouette, ensuite la nouvelle image
       img.src = art(q.ids[q.answer]);
-      img.className = 'poke-img is-hidden';
       reveal.textContent = ' ';
       options.replaceChildren(...q.names.map((name, i) => {
         const btn = h('button', { class: 'quiz-opt', type: 'button' }, name);

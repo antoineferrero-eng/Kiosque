@@ -15,7 +15,7 @@ Un dashboard auto-hébergé, moderne et entièrement configurable depuis la page
 | **E-sport** | Matchs majeurs du jour avec logos, scores et badge « En direct » (clé PandaScore) |
 | **Notes** | Notes avec tags colorés et recherche, gardées dans le navigateur |
 | **Devine le pays** | Quiz sur les drapeaux |
-| **Météo** | Météo actuelle, prochaines heures et 5 jours pour la ville de ton choix ([Open-Meteo](https://open-meteo.com)) |
+| **Météo** | Météo actuelle, 24 prochaines heures (molette ou glisser pour les faire défiler) et 5 jours pour la ville de ton choix ([Open-Meteo](https://open-meteo.com)) |
 | **Radio** | Lecteur de radios en direct (FIP, lofi, jazz…), recherche parmi 50 000 stations, touches multimédia ([Radio Browser](https://www.radio-browser.info)) |
 | **Jeux gratuits** | Jeux offerts en ce moment sur Epic Games, Steam, GOG… avec date de fin ([Epic](https://store.epicgames.com/fr/free-games) + [GamerPower](https://www.gamerpower.com)) |
 | **Bons plans PC** | Meilleures promos de jeux PC avec réduction et note Steam ([CheapShark](https://www.cheapshark.com)) |
@@ -25,11 +25,14 @@ Un dashboard auto-hébergé, moderne et entièrement configurable depuis la page
 | **Qui est ce Pokémon ?** | Quiz sur silhouette, jusqu'à la génération de ton choix ([PokeAPI](https://pokeapi.co)) |
 | **État des services web** | GitHub, Discord, Cloudflare, OpenAI, Reddit, Twitch… en panne ou pas (pages Statuspage) |
 | **Comptes à rebours** | Jours, heures, minutes avant tes événements, avec répétition annuelle |
+| **Minuteur** | Durée libre (« 5 », « 5:30 », « 1h30 »…) ou rapide, pause, ±1 min, sonnerie et notification à la fin, historique des derniers temps à relancer en un clic. Continue même si on recharge la page. |
 | **Pour rire** | Répliques de Kaamelott et blagues en français ([Kaamelott API](https://kaamelott.chaudie.re) + [JokeAPI](https://jokeapi.dev)) |
 
 Toutes ces sources sont gratuites et sans clé, sauf l'e-sport (clé PandaScore gratuite).
 
 ![Les widgets](docs/images/widgets.jpg)
+
+<p align="center"><img src="docs/images/minuteur.jpg" alt="Le minuteur et son historique" width="520"></p>
 
 Et aussi : sections repliables, déplaçables et redimensionnables (le contenu s'adapte : les tuiles s'étirent ou changent de nombre de colonnes, les listes s'allongent), statut global des services en haut de page, et un affichage pensé pour le mobile.
 
