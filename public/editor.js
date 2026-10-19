@@ -686,7 +686,7 @@ function keysOf(fields) {
 // ---------------------------------------------------------------- génération des formulaires
 
 function renderFields(obj, fields, ctx) {
-  return fields.map((f) => {
+  return fields.filter((f) => !f.when || f.when(obj)).map((f) => {
     if (f.row) return h('div', { class: 'field-row' }, renderFields(obj, f.row, ctx));
     if (f.group) {
       return h('details', { class: 'field-group' },

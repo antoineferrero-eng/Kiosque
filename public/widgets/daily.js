@@ -42,7 +42,13 @@ export function buildWebStatus(sec, body, actions, card) {
       badge.hidden = false;
       badge.textContent = `${ok}/${services.length}`;
       badge.dataset.state = ok === services.length ? 'up' : 'down';
-      body.replaceChildren(h('div', { class: 'webstatus' }, services.map((s) => {
+      // résumé d'une ligne, affiché à la place de la liste dans le format mini
+      const problems = services.filter((s) => s.indicator !== 'none');
+      const summary = h('div', { class: `ws-summary is-${problems.length ? 'down' : 'up'}` },
+        h('span', { class: 'ws-dot' }),
+        h('strong', {}, problems.length ? `${problems.length} service${problems.length > 1 ? 's' : ''} en difficulté` : 'Tout fonctionne'),
+        problems.length ? h('small', {}, problems.map((s) => s.name).join(', ')) : h('small', {}, `${services.length} services vérifiés`));
+      body.replaceChildren(summary, h('div', { class: 'webstatus' }, services.map((s) => {
         const [label, tone] = INDICATOR[s.indicator] ?? INDICATOR.unknown;
         return h('a', { class: `ws-row is-${tone}`, href: s.url, target: '_blank', rel: 'noopener noreferrer', title: s.description },
           h('span', { class: 'ws-dot' }),

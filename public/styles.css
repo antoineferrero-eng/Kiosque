@@ -1708,6 +1708,195 @@ select.input option { background: var(--panel); color: var(--text); }
 .poke-opts { display: grid !important; grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 460px; }
 @container (max-width: 260px) { .poke-opts { grid-template-columns: 1fr; } }
 
+.is-clipped { display: none !important; }
+
+/* ---------------------------------------------------------------- formats réduits
+   data-size="s" (compact) ou "xs" (mini) est posé sur la carte par app.js : forcé dans la config,
+   ou quand la carte passe sous les paliers de schema.js (COMPACT_STEPS). [data-size] = les deux. */
+
+/* ---------- devine le pays */
+.card[data-size] .quiz { gap: 8px; padding: 0; }
+.card[data-size] .quiz-head { display: none; }
+.card[data-size] .quiz-q { min-height: 0; gap: 3px; }
+.card[data-size] .quiz-label { font-size: 11.5px; }
+.card[data-size] .quiz-country { font-size: 17px; }
+.card[data-size] .quiz-flag { height: 58px; }
+.card[data-size] .quiz-opts.is-names { flex-direction: row; max-width: none; gap: 6px; }
+.card[data-size] .is-names .quiz-opt { flex: 1; min-width: 0; padding: 7px 6px; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card[data-size] .is-flags .quiz-opt { max-width: 78px; padding: 4px; }
+/* mini : la question à gauche, les réponses à droite */
+.card[data-size='xs'] .quiz { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 12px; text-align: left; }
+.card[data-size='xs'] .quiz-label { display: none; }
+.card[data-size='xs'] .quiz-q { align-items: flex-start; }
+.card[data-size='xs'] .quiz-flag { height: 48px; }
+.card[data-size='xs'] .quiz-country { font-size: 15px; max-width: 12ch; }
+.card[data-size='xs'] .quiz-opts.is-names { flex-direction: column; gap: 4px; }
+.card[data-size='xs'] .is-names .quiz-opt { padding: 5px 8px; }
+.card[data-size='xs'] .quiz-opts.is-flags { justify-content: flex-start; gap: 6px; }
+.card[data-size='xs'] .is-flags .quiz-opt { max-width: 66px; padding: 3px; }
+
+/* ---------- Pokémon */
+.card[data-size] .poke .quiz-head { display: none; }
+.card[data-size] .poke-stage { height: 110px; }
+.card[data-size] .poke-name { min-height: 18px; font-size: 13px; }
+.card[data-size] .poke-opts { gap: 5px; }
+.card[data-size] .poke-opts .quiz-opt { padding: 6px; font-size: 12px; }
+.card[data-size='xs'] .poke { display: grid; grid-template-columns: 92px minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: center; gap: 4px 12px; }
+.card[data-size='xs'] .poke-stage { grid-row: 1 / span 2; width: 92px; height: 92px; }
+.card[data-size='xs'] .poke-name { margin: 0; text-align: left; }
+
+/* ---------- météo */
+.card[data-size] .weather { display: flex; flex-direction: column; gap: 10px; }
+.card[data-size] .wx-days { display: none; }
+.card[data-size] .wx-icon { width: 42px; height: 42px; }
+.card[data-size] .wx-icon svg { width: 24px; height: 24px; }
+.card[data-size] .wx-temp strong { font-size: 28px; }
+.card[data-size] .wx-hour { padding: 6px 3px; }
+@container (min-width: 560px) {
+  .card[data-size] .weather { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'now hours'; align-items: center; }
+}
+.card[data-size='xs'] .wx-hours { display: none; }
+.card[data-size='xs'] .wx-meta > span:not(.wx-place) { display: none; }
+.card[data-size='xs'] .wx-now { grid-template-columns: auto auto 1fr; }
+
+/* ---------- radio */
+.card[data-size] .radio { gap: 8px; }
+.card[data-size] .radio-vol { display: none; }
+.card[data-size] .radio-now { padding: 8px; gap: 10px; }
+.card[data-size] .radio-cover .ico { width: 40px; height: 40px; }
+.card[data-size] .radio-play { width: 40px; height: 40px; }
+/* les stations deviennent une rangée de logos */
+.card[data-size] .radio-list { display: flex; flex-wrap: wrap; gap: 5px; }
+.card[data-size] .radio-station { padding: 4px; }
+.card[data-size] .radio-station span:last-child { display: none; }
+.card[data-size='xs'] .radio-list { display: none; }
+.card[data-size='xs'] .radio-now { padding: 4px 4px 4px 6px; }
+@container (max-width: 230px) { .card[data-size] .radio-cover { display: none; } }
+
+/* ---------- minuteur */
+.card[data-size] .timer { display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-areas: 'dial controls' 'dial history'; align-items: center; column-gap: 14px; row-gap: 8px; }
+.card[data-size] .tm-dial { grid-area: dial; width: 124px; }
+.card[data-size] .tm-display { font-size: 24px; }
+.card[data-size] .tm-controls { grid-area: controls; justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
+.card[data-size] .tm-history { grid-area: history; align-self: start; }
+.card[data-size] .tm-history .eyebrow { display: none; }
+.card[data-size] .tm-presets { display: none; }
+.card[data-size] .tm-adjust { height: 28px; padding: 0 8px; }
+.card[data-size] .tm-main { width: 42px; height: 42px; }
+/* mini : l'heure en grand et les boutons, sans cadran */
+.card[data-size='xs'] .timer { grid-template-areas: 'dial controls'; }
+.card[data-size='xs'] .tm-ring { display: none; }
+.card[data-size='xs'] .tm-dial { width: auto; aspect-ratio: auto; }
+.card[data-size='xs'] .tm-center { position: static; align-items: flex-start; }
+.card[data-size='xs'] .tm-display { width: 6.2ch; text-align: left; font-size: 30px; }
+.card[data-size='xs'] .tm-history, .card[data-size='xs'] .tm-adjust { display: none; }
+.card[data-size='xs'] .tm-controls { justify-content: flex-end; }
+
+/* ---------- comptes à rebours */
+.card[data-size] .cd-list { display: none; }
+.card[data-size] .cd-next { padding: 10px 8px; gap: 2px; }
+.card[data-size] .cd-emoji { font-size: 24px; }
+.card[data-size] .cd-unit strong { font-size: clamp(18px, 7cqi, 28px); }
+.card[data-size='xs'] .cd-next { flex-direction: row; justify-content: center; gap: 10px; text-align: left; }
+.card[data-size='xs'] .cd-date { display: none; }
+.card[data-size='xs'] .cd-name { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card[data-size='xs'] .cd-clock { margin: 0; gap: 6px; }
+.card[data-size='xs'] .cd-unit { min-width: 0; }
+.card[data-size='xs'] .cd-unit small { font-size: 9px; }
+
+/* ---------- lancements spatiaux */
+.card[data-size] .launch-list { display: none; }
+.card[data-size] .launch-next, .card[data-size] .launch-overlay { min-height: 150px; }
+.card[data-size] .launch-overlay { padding: 12px; }
+.card[data-size] .launch-overlay > .launch-meta:last-of-type { display: none; }
+.card[data-size='xs'] .launch-next, .card[data-size='xs'] .launch-overlay { min-height: 0; }
+.card[data-size='xs'] .launch-overlay { padding: 8px 10px; gap: 2px; }
+.card[data-size='xs'] .launch-status, .card[data-size='xs'] .launch-meta, .card[data-size='xs'] .launch-next .stream-btn { display: none; }
+.card[data-size='xs'] .launch-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.card[data-size='xs'] .launch-clock { margin: 2px 0 0; gap: 6px; }
+.card[data-size='xs'] .launch-unit strong { font-size: 18px; }
+
+/* ---------- état des services web */
+.ws-summary { display: none; }
+.card[data-size] .webstatus { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 4px; }
+.card[data-size] .ws-row { padding: 6px 8px; }
+.card[data-size] .ws-label { display: none; }
+.card[data-size] .ws-dot { grid-row: auto; }
+/* mini : une ligne de résumé, et seulement les services en difficulté */
+.card[data-size='xs'] .ws-summary { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: 9px; padding: 8px 10px; border-radius: 10px; background: var(--surface); }
+.card[data-size='xs'] .ws-summary .ws-dot { grid-row: span 2; }
+.card[data-size='xs'] .ws-summary strong { font-size: 13px; }
+.card[data-size='xs'] .ws-summary small { font-size: 11.5px; color: var(--faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ws-summary.is-up .ws-dot { background: var(--up); box-shadow: 0 0 0 3px color-mix(in srgb, var(--up) 18%, transparent); }
+.ws-summary.is-down .ws-dot { background: var(--down); box-shadow: 0 0 0 3px color-mix(in srgb, var(--down) 22%, transparent); }
+.card[data-size='xs'] .webstatus { display: none; }
+
+/* ---------- crypto */
+.card[data-size] .coins { gap: 3px; }
+.card[data-size] .coin { padding: 5px 8px; gap: 8px; }
+.card[data-size] .coin-name small { display: none; }
+.card[data-size] .spark { height: 22px; }
+.card[data-size='xs'] .spark { display: none; }
+.card[data-size='xs'] .coin { grid-template-columns: 22px minmax(0, 1fr) auto; padding: 4px 6px; }
+.card[data-size='xs'] .coin-ico { width: 22px; height: 22px; }
+.card[data-size='xs'] .coin-price { flex-direction: row; align-items: baseline; gap: 8px; }
+
+/* ---------- pour rire */
+.card[data-size] .fun { padding: 10px 12px; }
+.card[data-size] .fun-mark, .card[data-size] .fun figcaption small { display: none; }
+.card[data-size] .fun blockquote, .card[data-size] .fun-setup { margin-right: 0; font-size: 14px; }
+
+/* ---------- éphéméride */
+.card[data-size] .ephemeris { display: flex; }
+.card[data-size] .eph-image { display: none; }
+.card[data-size] .eph-event { padding: 5px 6px; }
+.card[data-size] .eph-events > :nth-child(n + 5) { display: none; } /* 3 événements (le 1er enfant est le titre) */
+.card[data-size='xs'] .eph-events > .eyebrow { display: none; }
+.card[data-size='xs'] .eph-events > :nth-child(n + 4) { display: none; }
+.card[data-size='xs'] .eph-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ---------- jeux gratuits : liste au lieu de vignettes */
+.card[data-size] .games { grid-template-columns: minmax(0, 1fr); gap: 5px; }
+.card[data-size] .game { flex-direction: row; align-items: center; gap: 10px; padding: 5px; }
+.card[data-size] .game:hover { transform: none; }
+.card[data-size] .game-art { flex: none; width: 92px; border-radius: 7px; overflow: hidden; }
+.card[data-size] .game-badge { display: none; }
+.card[data-size] .game-info { flex: 1; min-width: 0; padding: 0 4px 0 0; }
+
+/* ---------- bons plans */
+.card[data-size] .deal { grid-template-columns: 72px minmax(0, 1fr) auto; padding: 4px; gap: 8px; }
+.card[data-size] .deal-meta { display: none; }
+.card[data-size] .deal-off { padding: 3px 5px; font-size: 11px; }
+
+/* ---------- e-sport */
+.card[data-size] .match { padding: 8px 10px 8px 12px; }
+.card[data-size] .match-foot { display: none; }
+.card[data-size] .match-top { margin-bottom: 6px; }
+.card[data-size='xs'] .esport .eyebrow { display: none; }
+.card[data-size='xs'] .match-top { display: none; }
+
+/* ---------- actualités : titres seuls */
+.card[data-size] .post p { display: none; }
+.card[data-size] .post { padding: 6px 10px; }
+.card[data-size] .feed-head { padding-bottom: 8px; }
+
+/* ---------- applications */
+.card[data-size] .link-sub { display: none; }
+.card[data-size] .link { padding: 6px 8px; gap: 10px; }
+.card[data-size] .link .ico { width: 30px; height: 30px; }
+.card[data-size] .link .ico img { width: 20px; height: 20px; }
+.card[data-size] .links { --tile-min: 150px; gap: 6px; }
+.card[data-size] .links.display-grid { --tile-min: 76px; }
+.card[data-size] .display-grid .link { padding: 8px 4px 7px; gap: 5px; }
+.card[data-size='xs'] .display-grid .link-text { display: none; } /* mini : icônes seules */
+.card[data-size='xs'] .links.display-grid { --tile-min: 52px; }
+.card[data-size='xs'] .links.display-list { --tile-min: 130px; }
+
+/* ---------- notes */
+.card[data-size] .notes { gap: 6px; }
+.card[data-size] .note { padding: 8px 10px; }
+.card[data-size] .note .tags { display: none; }
+
 /* ---------------------------------------------------------------- hauteur réglable (poignée en mode édition)
    Une carte avec une hauteur fixe répartit l'espace : les listes s'étirent ou défilent. */
 

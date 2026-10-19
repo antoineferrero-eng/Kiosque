@@ -33,6 +33,28 @@ export const ESPORT_GAMES = [
 
 const ICON_HINT = 'i:nom (icône intégrée), di:nom (dashboardicons.com), lien d’image, emoji ou « favicon ».';
 
+// Formats réduits : sous ces paliers (taille du corps de la carte, en px), la section passe en « compact »
+// puis en « mini ». h = hauteur (seulement pour une carte de hauteur fixe), w = largeur. 0 = pas de palier.
+export const COMPACT_STEPS = {
+  flags: { h: [250, 170], w: [230, 0] },
+  pokemon: { h: [300, 190], w: [230, 0] },
+  weather: { h: [330, 190], w: [0, 0] },
+  radio: { h: [250, 150], w: [0, 0] },
+  timer: { h: [300, 180], w: [0, 0] },
+  countdown: { h: [230, 150], w: [0, 0] },
+  launches: { h: [330, 200], w: [260, 0] },
+  webstatus: { h: [260, 150], w: [220, 0] },
+  crypto: { h: [220, 140], w: [0, 0] },
+  fun: { h: [200, 0], w: [0, 0] },
+  ephemeris: { h: [380, 230], w: [0, 0] },
+  freegames: { h: [320, 0], w: [330, 0] },
+  deals: { h: [260, 0], w: [0, 0] },
+  esport: { h: [260, 160], w: [0, 0] },
+  rss: { h: [320, 0], w: [0, 0] },
+  links: { h: [0, 0], w: [0, 0] },
+  notes: { h: [0, 0], w: [0, 0] },
+};
+
 // Champs communs à toutes les sections
 export const COMMON_FIELDS = [
   { row: [
@@ -44,8 +66,13 @@ export const COMMON_FIELDS = [
     { key: 'span', label: 'Largeur', type: 'select', options: SPANS, number: true, default: 4 },
     { key: 'spanMd', label: 'Largeur sur tablette', type: 'select', options: [{ value: '', label: 'Auto' }, ...SPANS], number: true },
   ] },
-  { key: 'cardHeight', label: 'Hauteur (px)', type: 'number', min: 120, max: 2400, placeholder: 'Auto',
-    hint: 'Vide = la hauteur suit le contenu. Tu peux aussi glisser la poignée en bas à droite de la carte.' },
+  { row: [
+    { key: 'cardHeight', label: 'Hauteur (px)', type: 'number', min: 120, max: 2400, placeholder: 'Auto' },
+    { key: 'compact', label: 'Format', type: 'select', when: (o) => Boolean(COMPACT_STEPS[o.type]), options: [
+      { value: '', label: 'Automatique' }, { value: 'small', label: 'Compact' }, { value: 'tiny', label: 'Mini' },
+    ] },
+  ] },
+  { type: 'note', text: 'Hauteur vide = elle suit le contenu (ou glisse la poignée en bas à droite de la carte). Format automatique = la section se réduit d’elle-même quand sa carte devient petite.' },
 ];
 
 export const TYPES = {

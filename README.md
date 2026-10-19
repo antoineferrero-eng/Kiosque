@@ -96,6 +96,14 @@ Une étiquette affiche la taille pendant le glissement, et les autres cartes se 
 
 ![Redimensionner une carte](docs/images/redimensionner.jpg)
 
+### Formats compact et mini
+
+Quand une carte devient petite, la plupart des widgets changent de présentation au lieu de faire défiler leur contenu : le quiz des pays met la question et les drapeaux sur une ligne, le minuteur ne garde que l'heure et le bouton, la météo retire ses prévisions, la radio garde seulement le lecteur, l'état des services se résume en une ligne, etc. Les listes (jeux, promos, cryptos…) n'affichent que les éléments qui tiennent.
+
+Ça se fait tout seul quand la carte passe sous une certaine hauteur (carte de hauteur fixe) ou largeur. Tu peux aussi le forcer dans le formulaire de la section, champ **Format** : *Compact* ou *Mini* rendent la carte plus petite sans lui fixer de hauteur.
+
+![Formats normal, compact et mini](docs/images/formats.jpg)
+
 ## Ajouter une section
 
 **+ Section** ouvre la liste des types disponibles :

@@ -1,5 +1,6 @@
 import { $, $$, settings, target, svg, store, api, h, hostOf, renderIcon, iconButton, openButton, skeletons, ago, applyTheme } from './lib.js';
 import { initEditor, sectionTools, addSectionTile, addItemTile, resizeHandle } from './editor.js';
+import { COMPACT_STEPS } from './schema.js';
 import { buildEsport } from './widgets/esport.js';
 import { buildYoutube } from './widgets/youtube.js';
 import { buildFlags } from './widgets/flags.js';
@@ -134,11 +135,60 @@ function renderSection(sec, index) {
     resizeHandle(sec, card));
   try {
     BUILDERS[sec.type]?.(sec, body, actions, card);
+    watchSize(sec, card, body);
+    fitItems(sec, card, body);
   } catch (err) {
     console.error(err);
     body.replaceChildren(h('p', { class: 'empty' }, `Erreur dans la section : ${err.message}`));
   }
   return card;
+}
+
+// Format réduit (data-size = s ou xs) : forcé dans la config, ou selon la taille de la carte.
+// On ne regarde la hauteur que pour une carte de hauteur fixe : elle ne dépend alors pas du contenu,
+// donc changer de format ne change pas la taille (pas de boucle).
+function watchSize(sec, card, body) {
+  const steps = COMPACT_STEPS[sec.type];
+  if (!steps) return;
+  const forced = { small: 1, tiny: 2 }[sec.compact] ?? 0;
+  const level = (value, [s, xs]) => (xs && value < xs ? 2 : s && value < s ? 1 : 0);
+  const apply = () => {
+    let lvl = forced;
+    if (card.isConnected) {
+      if (card.classList.contains('has-height') && !card.classList.contains('is-collapsed')) lvl = Math.max(lvl, level(body.clientHeight, steps.h));
+      lvl = Math.max(lvl, level(body.clientWidth, steps.w));
+    }
+    const size = ['', 's', 'xs'][lvl];
+    if ((card.dataset.size ?? '') !== size) {
+      if (size) card.dataset.size = size; else delete card.dataset.size;
+    }
+  };
+  new ResizeObserver(apply).observe(body);
+  apply();
+}
+
+// Listes dans une carte de hauteur fixe : plutôt que de défiler, on masque les éléments qui ne rentrent pas.
+const FIT_ITEMS = {
+  freegames: '.game', deals: '.deal', ephemeris: '.eph-event', webstatus: '.ws-row', crypto: '.coin',
+  launches: '.launch-row', countdown: '.cd-row', radio: '.radio-station', links: '.link:not(.add-tile)',
+};
+function fitItems(sec, card, body) {
+  const selector = FIT_ITEMS[sec.type];
+  if (!selector) return;
+  let frame;
+  const fit = () => {
+    const items = [...body.querySelectorAll(selector)];
+    for (const item of items) item.classList.remove('is-clipped');
+    if (!card.classList.contains('has-height') || card.classList.contains('is-collapsed') || document.body.classList.contains('is-editing')) return;
+    // on retire par la fin tant que ça déborde (on garde au moins un élément)
+    for (let i = items.length - 1; i > 0 && body.scrollHeight > body.clientHeight + 1; i--) items[i].classList.add('is-clipped');
+  };
+  const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
+  new ResizeObserver(schedule).observe(body);
+  // le widget redessine son contenu (données chargées, actualisation) : on recommence
+  new MutationObserver(schedule).observe(body, { childList: true, subtree: true });
+  // en mode édition on montre tout (pour pouvoir cliquer sur chaque application)
+  new MutationObserver(schedule).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 }
 
 function toggleSection(id, card, btn) {
