@@ -132,12 +132,22 @@ Colle le lien de la chaîne ou son `@pseudo` : l'identifiant est retrouvé tout 
 
 ## Thèmes
 
-Trois thèmes au choix, dans **Réglages → Général**. Un clic donne l'aperçu immédiat, **Enregistrer** le garde.
+Huit thèmes au choix, dans **Réglages → Général**. Un clic donne l'aperçu immédiat, **Enregistrer** le garde.
+
+Chaque thème existe en clair et en sombre. Au-dessus des thèmes, choisis l'apparence : **Appareil** (suit le réglage clair/sombre de l'ordinateur ou du téléphone, et bascule tout seul quand il change), **Clair** ou **Sombre**.
 
 | Graphite (par défaut) | Aurore | Papier |
 | --- | --- | --- |
 | ![Thème Graphite](docs/images/theme-graphite.jpg) | ![Thème Aurore](docs/images/theme-aurore.jpg) | ![Thème Papier](docs/images/theme-papier.jpg) |
-| Sombre, plat et dense, accent citron vert | Sombre, reflets bleutés, cartes en verre | Clair, titres éditoriaux en serif |
+| Plat et dense, accent citron vert | Reflets bleutés, cartes en verre | Éditorial, crème et terracotta, titres en serif |
+
+Et aussi :
+
+- **Sauge** : vert tendre, titres en serif doux et italique
+- **Lagune** : bleu-vert profond, net, liseré lumineux en haut des cartes
+- **Lavande** : lilas, très arrondi
+- **Terminal** : phosphore vert, tout en police mono, invite de commande et curseur
+- **Encre** : noir et blanc contrasté, bordures et ombres franches, accent jaune
 
 ![Choix du thème](docs/images/reglages-theme.jpg)
 
@@ -202,7 +212,8 @@ Tout ce que fait l'éditeur est enregistré dans `data/config.json`, qu'on peut 
 ```jsonc
 {
   "title": "Kiosque",
-  "theme": "graphite",         // ou "aurore", "papier"
+  "theme": "graphite",         // ou "aurore", "papier", "sauge", "lagune", "lavande", "terminal", "encre"
+  "themeMode": "system",        // ou "light", "dark"
   "openIn": "sametab",          // ou "newtab"
   "statusCheck": true,
   "statusInterval": 60,         // secondes

@@ -37,6 +37,7 @@ const SVG = {
   resize: '<path d="M21 15 15 21"/><path d="M21 8 8 21"/>',
   sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>',
   moon: '<path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/>',
+  monitor: '<rect width="20" height="14" x="2" y="3" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/>',
   cloud: '<path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/>',
   'cloud-sun': '<path d="M12 2v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="M20 12h2"/><path d="m19.07 4.93-1.41 1.41"/><path d="M15.947 12.65a4 4 0 0 0-5.925-4.128"/><path d="M13 22H7a5 5 0 1 1 4.9-6H13a3 3 0 0 1 0 6Z"/>',
   'cloud-moon': '<path d="M10.188 8.5A6 6 0 0 1 16 4a1 1 0 0 0 6 6 6 6 0 0 1-3 5.197"/><path d="M13 16a3 3 0 1 1 0 6H7a5 5 0 1 1 4.9-6Z"/>',
@@ -132,8 +133,7 @@ function iconSources(icon, url) {
   if (icon.startsWith('di:')) {
     const name = icon.slice(3).trim().toLowerCase();
     // dashboard-icons a souvent une variante -light / -dark : on prend celle qui se voit sur le thème
-    const lightTheme = THEMES.find((t) => t.value === document.documentElement.dataset.theme)?.light;
-    const variant = lightTheme ? name.replace(/-light$/, '-dark') : name.replace(/-dark$/, '-light');
+    const variant = document.documentElement.dataset.mode === 'light' ? name.replace(/-light$/, '-dark') : name.replace(/-dark$/, '-light');
     const base = name.replace(/-(light|dark)$/, '');
     return [...new Set([variant, base, name])]
       .map((n) => `https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons/png/${n}.png`)
@@ -156,6 +156,8 @@ export function renderIcon(icon, url, label, cls = 'ico') {
   }
 
   const sources = iconSources(icon, url);
+  // les icônes dashboard-icons dépendent de l'apparence : on les garde pour les recharger si elle change
+  if (icon.startsWith('di:')) { wrap.classList.add('is-themed'); wrap.iconArgs = [icon, url, label, cls]; }
   if (sources === null) { wrap.textContent = icon; wrap.classList.add('is-emoji'); return wrap; }
   if (!sources.length) { letter(); return wrap; }
 
@@ -272,18 +274,51 @@ export const sameDay = (a, b) => a.toDateString() === b.toDateString();
 // ---------------------------------------------------------------- thème
 
 export const THEMES = [
-  { value: 'graphite', label: 'Graphite', description: 'Sombre, plat et dense' },
-  { value: 'aurore', label: 'Aurore', description: 'Sombre, reflets bleutés' },
-  { value: 'papier', label: 'Papier', description: 'Clair et éditorial', light: true },
+  { value: 'graphite', label: 'Graphite', description: 'Plat et dense, citron vert' },
+  { value: 'aurore', label: 'Aurore', description: 'Verre et reflets bleutés' },
+  { value: 'papier', label: 'Papier', description: 'Éditorial, crème et terracotta' },
+  { value: 'sauge', label: 'Sauge', description: 'Vert tendre, serif doux' },
+  { value: 'lagune', label: 'Lagune', description: 'Bleu-vert, net et lumineux' },
+  { value: 'lavande', label: 'Lavande', description: 'Lilas, tout en rondeur' },
+  { value: 'terminal', label: 'Terminal', description: 'Phosphore vert, tout en mono' },
+  { value: 'encre', label: 'Encre', description: 'Noir et blanc, ombres franches' },
 ];
 export const DEFAULT_THEME = 'graphite';
 
-// Le thème est aussi gardé dans le navigateur pour être posé avant l'affichage (voir index.html)
-export function applyTheme(theme) {
+// Apparence : claire, sombre, ou celle de l'appareil (suivie en direct)
+export const MODES = [
+  { value: 'system', label: 'Appareil', icon: 'monitor' },
+  { value: 'light', label: 'Clair', icon: 'sun' },
+  { value: 'dark', label: 'Sombre', icon: 'moon' },
+];
+export const DEFAULT_MODE = 'system';
+
+const darkQuery = matchMedia('(prefers-color-scheme: dark)');
+export const resolveMode = (mode) => (mode === 'light' || mode === 'dark' ? mode : darkQuery.matches ? 'dark' : 'light');
+
+let applied = { theme: DEFAULT_THEME, mode: DEFAULT_MODE };
+
+// Le thème est aussi gardé dans le navigateur pour être posé avant l'affichage (voir index.html).
+// Quand l'apparence réelle change, l'évènement « kiosque:mode » permet de recharger les icônes clair/sombre.
+export function applyTheme(theme, mode) {
   const value = THEMES.some((t) => t.value === theme) ? theme : DEFAULT_THEME;
-  document.documentElement.dataset.theme = value;
+  const m = MODES.some((x) => x.value === mode) ? mode : DEFAULT_MODE;
+  applied = { theme: value, mode: m };
+  const root = document.documentElement;
+  const before = root.dataset.mode;
+  root.dataset.theme = value;
+  root.dataset.mode = resolveMode(m);
   store.set('kiosque.theme', value);
+  store.set('kiosque.mode', m);
+  if (before && before !== root.dataset.mode) document.dispatchEvent(new CustomEvent('kiosque:mode'));
 }
+
+darkQuery.addEventListener('change', () => {
+  if (applied.mode === 'system') applyTheme(applied.theme, applied.mode);
+});
+document.addEventListener('kiosque:mode', () => {
+  for (const el of document.querySelectorAll('.is-themed')) el.replaceWith(renderIcon(...el.iconArgs));
+});
 
 // ---------------------------------------------------------------- notifications et fenêtres
 

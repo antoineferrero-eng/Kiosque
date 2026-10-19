@@ -1,14 +1,14 @@
 <!doctype html>
-<html lang="fr" data-theme="graphite">
+<html lang="fr" data-theme="graphite" data-mode="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <script>try { var t = JSON.parse(localStorage.getItem("kiosque.theme")); if (t) document.documentElement.dataset.theme = t; } catch (e) {}</script>
+  <script>try { var d = document.documentElement, t = JSON.parse(localStorage.getItem("kiosque.theme")), m = JSON.parse(localStorage.getItem("kiosque.mode")) || "system"; if (t) d.dataset.theme = t; d.dataset.mode = m === "light" || m === "dark" ? m : matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; } catch (e) {}</script>
   <title>Kiosque</title>
   <link rel="icon" id="favicon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%238b9cff'/%3E%3Crect x='7' y='7' width='8' height='8' rx='2' fill='%2307080d'/%3E%3Crect x='17' y='7' width='8' height='8' rx='2' fill='%2307080d' opacity='.6'/%3E%3Crect x='7' y='17' width='8' height='8' rx='2' fill='%2307080d' opacity='.6'/%3E%3Crect x='17' y='17' width='8' height='8' rx='2' fill='%2307080d'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Inter+Tight:wght@500;600;700&family=JetBrains+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Fraunces:ital,opsz,wght,SOFT@0,9..144,400..600,100;1,9..144,400..600,100&family=Manrope:wght@400..800&family=Nunito:wght@400;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="/styles.css">
   <script type="module" src="/app.js"></script>
 </head>

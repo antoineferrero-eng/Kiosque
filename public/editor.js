@@ -1,5 +1,5 @@
 // Mode édition : connexion admin, panneaux de modification, ajout, suppression et déplacement des sections.
-import { $, $$, h, svg, api, store, renderIcon, toast, modal, ICON_NAMES, THEMES, DEFAULT_THEME, applyTheme } from './lib.js';
+import { $, $$, h, svg, api, store, renderIcon, toast, modal, ICON_NAMES, THEMES, DEFAULT_THEME, MODES, DEFAULT_MODE, resolveMode, applyTheme } from './lib.js';
 import { TYPES, COMMON_FIELDS, GENERAL_FIELDS, SECRET_FIELDS, ESPORT_GAMES, cleanSection, clean } from './schema.js';
 
 const TOKEN_KEY = 'kiosque.token';
@@ -535,7 +535,7 @@ function openSettings(tab = 'general') {
 
   d.body.append(tabs, ...Object.values(panes));
   // aperçu en direct du thème : on revient au thème enregistré si on ferme sans enregistrer
-  d.dialog.addEventListener('close', () => applyTheme(app.getConfig().theme));
+  d.dialog.addEventListener('close', () => applyTheme(app.getConfig().theme, app.getConfig().themeMode));
   formFooter(d, {
     extra: logout,
     onSave: async () => {
@@ -680,7 +680,7 @@ function backupPane(d) {
 }
 
 function keysOf(fields) {
-  return fields.flatMap((f) => (f.row ? keysOf(f.row) : f.group ? keysOf(f.fields) : f.type === 'secret' ? [] : [f.key]));
+  return fields.flatMap((f) => (f.row ? keysOf(f.row) : f.group ? keysOf(f.fields) : f.type === 'secret' ? [] : f.modeKey ? [f.key, f.modeKey] : [f.key]));
 }
 
 // ---------------------------------------------------------------- génération des formulaires
@@ -897,23 +897,50 @@ function secretField(f, ctx, id) {
     f.link ? h('a', { class: 'field-link', href: f.link, target: '_blank', rel: 'noopener noreferrer', html: `${f.linkLabel} ${svg('external')}` }) : null);
 }
 
-// Choix du thème : cartes avec un aperçu dessiné dans les couleurs de chaque thème
+// Choix de l'apparence (appareil / clair / sombre) et du thème : cartes avec un aperçu
+// dessiné dans les couleurs de chaque thème, pour l'apparence choisie
 function themeField(obj, f) {
-  const current = () => obj[f.key] ?? DEFAULT_THEME;
+  const theme = () => obj[f.key] ?? DEFAULT_THEME;
+  const mode = () => obj[f.modeKey] ?? DEFAULT_MODE;
+  const preview = () => applyTheme(theme(), mode());
+
+  const modeButtons = MODES.map((m) => {
+    const btn = h('button', { type: 'button', role: 'radio', 'aria-checked': String(m.value === mode()), html: `${svg(m.icon)}<span>${m.label}</span>` });
+    btn.addEventListener('click', () => {
+      obj[f.modeKey] = m.value;
+      modeButtons.forEach((b, i) => b.setAttribute('aria-checked', String(MODES[i].value === m.value)));
+      syncPreviews();
+      preview();
+    });
+    return btn;
+  });
+
+  const previews = [];
   const cards = THEMES.map((t) => {
-    const card = h('button', { class: 'theme-card', type: 'button', role: 'radio', 'aria-checked': String(t.value === current()) },
-      h('span', { class: 'theme-preview', 'data-theme': t.value, 'aria-hidden': 'true' }, h('span'), h('span'), h('span')),
+    const thumb = h('span', { class: 'theme-preview', 'data-theme': t.value, 'aria-hidden': 'true' }, h('span'), h('span'), h('span'));
+    previews.push(thumb);
+    const card = h('button', { class: 'theme-card', type: 'button', role: 'radio', 'aria-checked': String(t.value === theme()) },
+      thumb,
       h('strong', {}, t.label),
       h('small', {}, t.description));
     card.addEventListener('click', () => {
       obj[f.key] = t.value;
-      applyTheme(t.value);
       cards.forEach((c, i) => c.setAttribute('aria-checked', String(THEMES[i].value === t.value)));
+      preview();
     });
     return card;
   });
+  const syncPreviews = () => {
+    if (previews[0].isConnected === false && previews[0].dataset.mode) { document.removeEventListener('kiosque:mode', syncPreviews); return; }
+    for (const p of previews) p.dataset.mode = resolveMode(mode());
+  };
+  syncPreviews();
+  // en mode « Appareil », les aperçus suivent l'appareil s'il bascule pendant que la fenêtre est ouverte
+  document.addEventListener('kiosque:mode', syncPreviews);
+
   return h('div', { class: 'field' },
     h('span', { class: 'field-label' }, f.label),
+    h('div', { class: 'mode-switch', role: 'radiogroup', 'aria-label': 'Apparence' }, modeButtons),
     h('div', { class: 'theme-grid', role: 'radiogroup', 'aria-label': f.label }, cards),
     h('p', { class: 'field-hint' }, 'Aperçu immédiat. Enregistre pour le garder.'));
 }

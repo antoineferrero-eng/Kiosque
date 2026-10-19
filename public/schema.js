@@ -451,7 +451,7 @@ export const TYPES = {
 };
 
 export const GENERAL_FIELDS = [
-  { key: 'theme', label: 'Thème', type: 'theme' },
+  { key: 'theme', modeKey: 'themeMode', label: 'Thème', type: 'theme' },
   { row: [
     { key: 'title', label: 'Titre de l’onglet', type: 'text', default: 'Kiosque' },
     { key: 'favicon', label: 'Favicon', type: 'url', placeholder: 'Lien d’une image' },

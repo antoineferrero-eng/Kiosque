@@ -70,7 +70,7 @@ async function init() {
 }
 
 function renderAll() {
-  applyTheme(config.theme);
+  applyTheme(config.theme, config.themeMode);
   settings.openIn = config.openIn || 'sametab';
   document.title = config.title || 'Kiosque';
   if (config.favicon) $('#favicon').href = config.favicon;
