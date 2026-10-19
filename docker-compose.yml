@@ -5,9 +5,11 @@ services:
     container_name: kiosque
     restart: unless-stopped
     ports:
-      - "3010:3010"
+      # Port de ton serveur → port du conteneur (toujours 3010).
+      # Change KIOSQUE_PORT (.env ou variables de la stack Portainer) pour utiliser un autre port, ex. 3000.
+      - "${KIOSQUE_PORT:-3010}:3010"
     environment:
-      # Valeurs lues dans .env (Docker Compose) ou dans les variables de la stack (Portainer)
+      # Facultatif : tout se règle aussi dans la page (Réglages → Clés & accès)
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - PANDASCORE_TOKEN=${PANDASCORE_TOKEN:-}
     volumes:

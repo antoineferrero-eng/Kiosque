@@ -118,8 +118,11 @@ C'est la façon la plus simple de passer ta configuration d'un serveur à un aut
 1. Portainer → **Stacks** → **Add stack**, nom `kiosque`, méthode **Repository**.
 2. Repository URL : l'adresse de ce dépôt. Reference : `refs/heads/main`. Compose path : `docker-compose.yml`.
    Dépôt privé : active **Authentication** (nom d'utilisateur GitHub + *personal access token*).
-3. **Deploy the stack**, puis ouvre `http://<ip-du-serveur>:3010`.
-4. Crée ton mot de passe au premier clic sur le crayon, puis charge ta configuration depuis **Réglages → Sauvegarde**.
+3. Facultatif, dans **Environment variables** : `KIOSQUE_PORT` pour choisir le port de ton serveur (ex. `3000`, sinon `3010`), et les clés listées plus bas.
+4. **Deploy the stack**, puis ouvre `http://<ip-du-serveur>:<port>`.
+5. Crée ton mot de passe au premier clic sur le crayon, puis charge ta configuration depuis **Réglages → Sauvegarde**.
+
+> Le port choisi doit être libre (un autre conteneur ne doit pas déjà l'utiliser) et ouvert dans le pare-feu du serveur.
 
 La config et les clés sont gardées dans le volume `kiosque-data` : elles survivent aux mises à jour. Pour mettre à jour le code : pousse sur GitHub, puis **Pull and redeploy** dans la stack.
 
@@ -133,7 +136,8 @@ Tout se règle dans la page, mais tu peux aussi tout fixer côté serveur. Une v
 | --- | --- |
 | `ADMIN_PASSWORD` | Mot de passe du mode édition |
 | `PANDASCORE_TOKEN` | Clé API PandaScore pour l'e-sport |
-| `PORT` | Port d'écoute, `3010` par défaut |
+| `KIOSQUE_PORT` | Avec Docker : port du serveur où Kiosque est accessible, `3010` par défaut |
+| `PORT` | Sans Docker : port d'écoute de `node server.js`, `3010` par défaut |
 | `DATA_DIR` | Dossier de la config et des clés, `data` par défaut (`/app/data` dans Docker) |
 
 En local ou avec Docker Compose, mets-les dans un fichier `.env` (copie de `.env.example`). Dans Portainer, ajoute-les dans **Environment variables** de la stack.
