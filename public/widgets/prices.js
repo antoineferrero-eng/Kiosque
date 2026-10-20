@@ -124,7 +124,10 @@ function changeBadge(p, money) {
 function shipping(o, money) {
   if (o.shipping === 0) return 'livraison offerte';
   if (o.shipping > 0) return `+ ${money.format(o.shipping)} de port`;
-  return o.delivery ? `livré ${o.delivery.replace(/^jusqu'au /, 'd’ici le ')}` : null;
+  if (!o.delivery) return null;
+  // « jusqu'au mar. 27/10 » ou « jeu. 22/10–lun. 26/10 » : une date ; sinon un texte du marchand
+  if (/^(jusqu|lun|mar|mer|jeu|ven|sam|dim)/i.test(o.delivery)) return `livré ${o.delivery.replace(/^jusqu'au /, 'd’ici le ')}`;
+  return o.delivery.replace(/^./, (c) => c.toLowerCase());
 }
 
 function detail(p, money, period, setPeriod) {
@@ -187,11 +190,14 @@ function product(p, { sec, openSet, persist, rerender, period, setPeriod, card }
   row.addEventListener('click', () => {
     // en format mini, pas de détail : on ouvre directement la meilleure offre
     if (card.dataset.size === 'xs') { if (best?.url) window.open(best.url, '_blank', 'noopener'); return; }
-    if (openSet.has(key)) openSet.delete(key); else openSet.add(key);
+    const opening = !openSet.has(key);
+    // carte de hauteur fixe : un seul produit déplié à la fois, la place est comptée
+    if (opening && card.classList.contains('has-height')) openSet.clear();
+    if (opening) openSet.add(key); else openSet.delete(key);
     persist();
-    rerender();
+    rerender(opening ? key : null);
   });
-  return h('article', { class: `pr-item${open ? ' is-open' : ''}${p.reached ? ' is-reached' : ''}${best ? '' : ' is-missing'}` },
+  return h('article', { class: `pr-item${open ? ' is-open' : ''}${p.reached ? ' is-reached' : ''}${best ? '' : ' is-missing'}`, 'data-key': key },
     row,
     open ? detail(p, money, period, setPeriod) : null);
 }
@@ -204,7 +210,7 @@ export function buildPrices(sec, body, actions, card) {
   let last = null;
   const persist = () => store.set(storeKey, { open: [...openSet], period });
 
-  function render(data = last) {
+  function render(data = last, focus = null) {
     last = data;
     const { products } = data;
     if (!products.length) {
@@ -215,10 +221,14 @@ export function buildPrices(sec, body, actions, card) {
     if (products.length === 1 && !saved) openSet.add(products[0].name);
     const ctx = {
       sec, openSet, persist, card, period,
-      rerender: () => render(),
+      rerender: (focus) => render(last, focus),
       setPeriod: (p) => { period = p; persist(); render(); },
     };
     body.replaceChildren(h('div', { class: 'prices' }, products.map((p) => product(p, ctx))));
+    // produit qu'on vient de déplier : on le fait apparaître en entier si le corps de la carte défile
+    // (après l'ajustement des éléments masqués, qui a lieu à l'image suivante)
+    const opened = focus && [...body.querySelectorAll('.pr-item')].find((el) => el.dataset.key === focus);
+    if (opened) requestAnimationFrame(() => requestAnimationFrame(() => opened.scrollIntoView({ block: 'nearest', behavior: 'smooth' })));
   }
 
   dataWidget({ sec, body, actions, card, refresh: 1800, label: 'Actualiser les prix', render: (data) => render(data) });

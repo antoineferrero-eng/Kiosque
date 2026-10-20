@@ -182,8 +182,11 @@ function fitItems(sec, card, body) {
     const items = [...body.querySelectorAll(selector)];
     for (const item of items) item.classList.remove('is-clipped');
     if (!card.classList.contains('has-height') || card.classList.contains('is-collapsed') || document.body.classList.contains('is-editing')) return;
-    // on retire par la fin tant que ça déborde (on garde au moins un élément)
-    for (let i = items.length - 1; i > 0 && body.scrollHeight > body.clientHeight + 1; i--) items[i].classList.add('is-clipped');
+    // on retire par la fin tant que ça déborde, sauf les éléments dépliés (is-open) : s'ils ne tiennent
+    // toujours pas, le corps de la carte défile. On garde au moins un élément.
+    const removable = items.filter((it) => !it.classList.contains('is-open'));
+    const last = removable.length === items.length ? 1 : 0;
+    for (let i = removable.length - 1; i >= last && body.scrollHeight > body.clientHeight + 1; i--) removable[i].classList.add('is-clipped');
   };
   const schedule = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
   new ResizeObserver(schedule).observe(body);
