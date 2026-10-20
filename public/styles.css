@@ -2691,3 +2691,8 @@ body.is-resizing.is-vertical { cursor: ns-resize; }
 .card[data-size='xs'] .pr-offers, .card[data-size='xs'] .pr-trend, .card[data-size='xs'] .pr-thumb { display: none; }
 .card[data-size='xs'] .pr-item { grid-template-columns: minmax(0, 1fr) auto; padding: 4px 8px; }
 .card[data-size='xs'] .pr-flag { font-size: 10px; }
+.pr-item.is-missing .pr-thumb, .pr-thumb:has(.pr-noimg) { background: var(--surface-2); }
+.pr-noimg { display: grid; color: var(--faint); }
+.pr-noimg svg { width: 18px; height: 18px; }
+.pr-error { font-size: 11px; color: var(--faint); line-height: 1.35; }
+.card[data-size='xs'] .pr-error { display: none; }

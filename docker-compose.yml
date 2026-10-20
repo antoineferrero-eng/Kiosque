@@ -12,6 +12,9 @@ services:
       # Facultatif : tout se règle aussi dans la page (Réglages → Clés & accès)
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - PANDASCORE_TOKEN=${PANDASCORE_TOKEN:-}
+      # Comparateur de prix : relais quand un site bloque le serveur (off pour le couper)
+      - PRICES_RELAY=${PRICES_RELAY:-}
+      - JINA_API_KEY=${JINA_API_KEY:-}
     volumes:
       - kiosque-data:/app/data
 

@@ -383,16 +383,48 @@ const toNumber = (v) => {
   return Number.isFinite(n) && n > 0 ? n : null;
 };
 
-async function fetchPage(url) {
+// Beaucoup de sites refusent les requêtes venant d'un hébergeur (adresse de serveur cloud) : dans ce cas la page
+// est relue via un relais de lecture (r.jina.ai par défaut, gratuit et sans clé, ~20 pages par minute).
+// PRICES_RELAY=off le désactive, JINA_API_KEY (facultative) relève la limite.
+const BLOCKED_PAGE = /Something has gone wrong|cf-chl-|challenge-platform|anomaly-modal|Access Denied|captcha/i;
+const blockedHosts = new Map();
+const relayUrl = () => {
+  const v = (process.env.PRICES_RELAY ?? '').trim();
+  return /^(off|false|0|non)$/i.test(v) ? null : v || 'https://r.jina.ai/';
+};
+
+async function fetchOnce(url, headers, timeout) {
   let res;
   try {
-    res = await fetch(url, { headers: BROWSER_HEADERS, redirect: 'follow', signal: AbortSignal.timeout(15_000) });
+    res = await fetch(url, { headers, redirect: 'follow', signal: AbortSignal.timeout(timeout) });
   } catch (err) {
     throw httpError(502, err.name === 'TimeoutError' ? 'site trop lent' : 'site injoignable');
   }
-  if ([403, 429, 503].includes(res.status)) throw httpError(502, 'le site bloque la lecture automatique');
+  const html = await res.text().catch(() => '');
+  const blocked = [202, 403, 429, 503].includes(res.status) || (html.length < 60_000 && BLOCKED_PAGE.test(html));
+  if (blocked) throw Object.assign(httpError(502, 'le site bloque la lecture automatique'), { blocked: true, status429: res.status === 429 });
   if (!res.ok) throw httpError(502, `le site a répondu HTTP ${res.status}`);
-  return res.text();
+  return html;
+}
+
+async function fetchPage(url) {
+  const host = new URL(url).hostname;
+  const relay = relayUrl();
+  if (!relay || !(blockedHosts.get(host) > Date.now())) {
+    try {
+      return await fetchOnce(url, BROWSER_HEADERS, 15_000);
+    } catch (err) {
+      if (!err.blocked || !relay) throw err;
+      blockedHosts.set(host, Date.now() + 6 * 3600_000);
+    }
+  }
+  const headers = { 'x-return-format': 'html', ...(process.env.JINA_API_KEY && { authorization: `Bearer ${process.env.JINA_API_KEY}` }) };
+  try {
+    return await fetchOnce(relay + url, headers, 40_000);
+  } catch (err) {
+    if (err.status429) throw httpError(502, 'relais saturé, nouvel essai bientôt');
+    throw httpError(502, err.blocked ? 'le site bloque la lecture, même via le relais' : `relais : ${err.message}`);
+  }
 }
 
 // Toutes les fiches Product des blocs JSON-LD (y compris dans @graph ou en tableau)
@@ -517,20 +549,20 @@ const prices = {
   },
 };
 
-// Recherche de produits sur Idealo : nom, prix le plus bas, nombre d'offres et image, en une seule page
-export async function searchPrices(query) {
-  const q = String(query ?? '').trim();
-  if (!q) throw httpError(400, 'Tape le nom d’un produit (ex. AirPods Pro 2, Switch 2)');
-  const html = await fetchPage(`https://www.idealo.fr/prechcat.html?q=${encodeURIComponent(q)}`)
-    .catch((err) => { throw httpError(502, `Recherche Idealo impossible : ${err.message}`); });
+// Recherche de produits. Idealo d'abord (sa page de recherche donne nom, prix, offres et image) ; si elle
+// est bloquée, un moteur de recherche (DuckDuckGo) retrouve les fiches Idealo. Les fiches LeDénicheur,
+// trouvées par le moteur, sont associées au produit Idealo qui leur ressemble le plus.
+async function idealoSearch(q) {
+  const html = await fetchPage(`https://www.idealo.fr/prechcat.html?q=${encodeURIComponent(q)}`);
   const seen = new Set();
-  return html.split(/class="sr-resultList__item/).slice(1).flatMap((chunk) => {
+  const items = html.split(/class="sr-resultList__item/).slice(1).flatMap((chunk) => {
     const url = chunk.match(/href="(https:\/\/www\.idealo\.fr\/prix\/\d+\/[^"]+\.html)"/)?.[1];
     const name = decodeHtml(chunk.match(/productSummary__title[^>]*>([^<]+)</)?.[1]);
     if (!url || !name || seen.has(url)) return [];
     seen.add(url);
     const priceText = chunk.match(/detailedPriceInfo__price[^>]*>([\s\S]*?)<\/div>/)?.[1]?.replace(/<span[^>]*>[^<]*<\/span>/g, '') ?? '';
     return [{
+      shop: 'idealo',
       name,
       url,
       price: toNumber(decodeHtml(priceText)),
@@ -538,7 +570,99 @@ export async function searchPrices(query) {
       image: chunk.match(/<img[^>]+src="([^"]+)"/)?.[1] ?? null,
       details: decodeHtml(chunk.match(/productSummary__mainDetails[^>]*>\s*<span>([^<]+)/)?.[1]),
     }];
-  }).slice(0, 10);
+  });
+  if (!items.length && !/sr-resultList/.test(html)) throw httpError(502, 'page de recherche illisible');
+  return items.slice(0, 10);
+}
+
+async function webSearch(q) {
+  const html = await fetchPage(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(q)}`);
+  return [...html.matchAll(/<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)].map(([, href, title]) => {
+    const link = decodeHtml(href);
+    const target = link.match(/[?&]uddg=([^&]+)/)?.[1];
+    return { url: target ? decodeURIComponent(target) : link, title: decodeHtml(title.replace(/<[^>]+>/g, ' ')) };
+  });
+}
+
+async function idealoViaWeb(q) {
+  const seen = new Set();
+  const found = (await webSearch(`site:idealo.fr/prix ${q}`))
+    .filter((r) => /^https:\/\/www\.idealo\.fr\/prix\/\d+\/[^?#]+\.html$/.test(r.url) && !seen.has(r.url) && seen.add(r.url))
+    .slice(0, 8);
+  // le moteur ne donne pas les prix : on lit les premières fiches (elles restent en cache pour le widget)
+  return Promise.all(found.map(async (r, i) => {
+    const page = i < 6 ? await readPrice(r.url).catch(() => null) : null;
+    return {
+      shop: 'idealo',
+      name: r.title.replace(/\s+au meilleur prix.*$/i, '').replace(/\s*[-|–]\s*idealo.*$/i, '').trim(),
+      url: r.url,
+      price: page?.price ?? null,
+      count: page?.count ?? null,
+      image: page?.image ?? null,
+      details: '',
+    };
+  }));
+}
+
+async function ledenicheurViaWeb(q) {
+  const seen = new Set();
+  return (await webSearch(`site:ledenicheur.fr ${q}`)).flatMap((r) => {
+    const id = r.url.match(/^https:\/\/ledenicheur\.fr\/product\.php\?(?:.*&)?p=(\d+)/)?.[1];
+    if (!id || seen.has(id)) return [];
+    seen.add(id);
+    // « Sapphire Radeon RX 9070 XT Pulse 16 Go - Offres dès 869,7 € »
+    const [name, rest = ''] = r.title.split(/\s+[-–]\s+(?=Offres|Comparer|Trouvez|Meilleur)/i);
+    return [{
+      shop: 'LeDénicheur',
+      name: name.trim(),
+      url: `https://ledenicheur.fr/product.php?p=${id}`,
+      price: toNumber(rest.match(/dès\s+([\d\s  .,]+)/i)?.[1]),
+      count: null,
+      image: `https://cdn.pji.nu/product/standard/280/${id}.jpg`,
+      details: '',
+    }];
+  }).slice(0, 8);
+}
+
+// Ressemblance entre deux noms de produit (coefficient de Dice sur les mots, « 16 Go » = « 16GB »)
+const nameWords = (s) => new Set(s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  .replace(/(\d+)\s*(go|gb|g)\b/g, '$1go').replace(/(\d+)\s*(to|tb|t)\b/g, '$1to')
+  .split(/[^a-z0-9]+/).filter((w) => w.length > 1 || /\d/.test(w)));
+function similarity(a, b) {
+  const A = nameWords(a);
+  const B = nameWords(b);
+  // capacités différentes (16 Go / 8 Go) : pas le même produit
+  const sizes = (set) => [...set].filter((w) => /^\d+(go|to)$/.test(w));
+  if (sizes(A).length && sizes(B).length && !sizes(A).some((w) => B.has(w))) return 0;
+  let common = 0;
+  for (const w of A) if (B.has(w)) common++;
+  return (2 * common) / ((A.size + B.size) || 1);
+}
+
+export async function searchPrices(query) {
+  const q = String(query ?? '').trim();
+  if (!q) throw httpError(400, 'Tape le nom d’un produit (ex. AirPods Pro 2, Switch 2)');
+  const [idealo, ledenicheur] = await Promise.allSettled([
+    idealoSearch(q).catch(() => idealoViaWeb(q)),
+    ledenicheurViaWeb(q),
+  ]);
+  if (idealo.status === 'rejected' && ledenicheur.status === 'rejected') throw httpError(502, `Recherche impossible : ${idealo.reason.message}`);
+  const fromIdealo = idealo.value ?? [];
+  const fromLed = ledenicheur.value ?? [];
+  const paired = new Set();
+  for (const item of fromIdealo) {
+    let match = null;
+    let best = 0.75;
+    for (const l of fromLed) {
+      const score = similarity(item.name, l.name);
+      if (!paired.has(l.url) && score >= best) { match = l; best = score; }
+    }
+    if (match) {
+      paired.add(match.url);
+      item.match = { url: match.url, name: match.name, price: match.price };
+    }
+  }
+  return [...fromIdealo, ...fromLed.filter((l) => !paired.has(l.url)).slice(0, 6)];
 }
 
 export const PROVIDERS = { weather, freegames, deals, launches, crypto, ephemeris, webstatus, fun, prices };

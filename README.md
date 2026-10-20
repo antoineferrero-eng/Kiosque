@@ -202,6 +202,8 @@ Tout se règle dans la page, mais tu peux aussi tout fixer côté serveur. Une v
 | --- | --- |
 | `ADMIN_PASSWORD` | Mot de passe du mode édition |
 | `PANDASCORE_TOKEN` | Clé API PandaScore pour l'e-sport |
+| `PRICES_RELAY` | Comparateur de prix : relais utilisé quand un site bloque ton serveur, `https://r.jina.ai/` par défaut, `off` pour le couper |
+| `JINA_API_KEY` | Facultative : clé [Jina](https://jina.ai/reader) pour dépasser ~20 pages par minute via le relais |
 | `KIOSQUE_PORT` | Avec Docker : port du serveur où Kiosque est accessible, `3010` par défaut |
 | `PORT` | Sans Docker : port d'écoute de `node server.js`, `3010` par défaut |
 | `DATA_DIR` | Dossier de la config et des clés, `data` par défaut (`/app/data` dans Docker) |
@@ -243,5 +245,5 @@ Les options de chaque type sont visibles dans l'éditeur, ou décrites dans `pub
 ## À savoir
 
 - Les notes et le record du quiz sont propres à chaque navigateur.
-- Comparateur de prix : chaque page produit est relue au plus toutes les 3 heures, et l'historique des prix est gardé dans `data/prices.json` (120 jours). LeDénicheur bloque sa recherche aux robots : ouvre la fiche du produit sur le site et colle son lien dans les réglages. Certaines boutiques (souvent Amazon) refusent aussi la lecture : la pastille du site affiche alors « ? ».
+- Comparateur de prix : chaque page produit est relue au plus toutes les 3 heures, et l'historique des prix est gardé dans `data/prices.json` (120 jours). Idealo et LeDénicheur refusent souvent les requêtes venant d'un serveur hébergé (VPS, cloud) : Kiosque passe alors par un relais de lecture ([r.jina.ai](https://jina.ai/reader), gratuit, sans clé), qui ne reçoit que l'adresse des pages produit et des recherches. La recherche passe par Idealo, ou par DuckDuckGo s'il est bloqué. Si une boutique refuse même le relais (souvent Amazon), sa pastille affiche « ? ».
 - Le dossier `data/` et les fichiers `ma-config*.json` sont exclus de Git : ils contiennent ta configuration et tes clés.

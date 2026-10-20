@@ -991,32 +991,34 @@ function radioSearchField(f, ctx, id) {
     results);
 }
 
-// Recherche de produits sur Idealo : un clic ajoute le produit à la liste `target`
+// Recherche de produits (Idealo, LeDénicheur) : un clic ajoute le produit à la liste `target`
 function priceSearchField(f, ctx, id) {
   const input = h('input', { id, class: 'input', type: 'search', placeholder: 'AirPods Pro 2, Switch 2, RTX 5070…', spellcheck: 'false' });
   const btn = h('button', { class: 'btn', type: 'button', html: `${svg('search')}<span>Chercher</span>` });
   const results = h('div', { class: 'radio-results' });
-  const hint = h('p', { class: 'field-hint' }, 'Cherche un produit sur Idealo, puis clique pour le suivre. Tu peux ensuite lui ajouter un lien LeDénicheur.');
+  const hint = h('p', { class: 'field-hint' }, 'Cherche un produit, puis clique pour le suivre : la fiche LeDénicheur correspondante est ajoutée quand elle est trouvée.');
   const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
 
   async function search() {
     const q = input.value.trim();
     if (!q) return;
     btn.disabled = true;
-    hint.textContent = 'Recherche sur Idealo…';
+    hint.textContent = 'Recherche sur Idealo et LeDénicheur…';
     try {
       const found = await api(`/api/prices/search?q=${encodeURIComponent(q)}`, { token });
       hint.textContent = found.length ? `${found.length} produit${found.length > 1 ? 's' : ''} trouvé${found.length > 1 ? 's' : ''}` : 'Aucun produit trouvé.';
       results.replaceChildren(...found.map((r) => {
-        const already = ctx.lists?.[f.target]?.has((p) => p.idealo === r.url);
+        const already = ctx.lists?.[f.target]?.has((p) => p.idealo === r.url || p.ledenicheur === r.url);
         const item = h('button', { class: `radio-result price-result${already ? ' is-added' : ''}`, type: 'button', title: r.details || r.name },
           h('span', { class: 'ico pr-thumb' }, r.image ? h('img', { src: r.image, alt: '', loading: 'lazy' }) : null),
           h('span', { class: 'radio-result-text' }, h('strong', {}, r.name),
-            h('small', {}, [r.price ? `dès ${euro.format(r.price)}` : '', r.count ? `${r.count} offre${r.count > 1 ? 's' : ''}` : '', r.details].filter(Boolean).join(' · '))),
+            h('small', {}, [r.shop, r.price ? `dès ${euro.format(r.price)}` : '', r.count ? `${r.count} offre${r.count > 1 ? 's' : ''}` : '',
+              r.match ? `+ LeDénicheur${r.match.price ? ` dès ${euro.format(r.match.price)}` : ''}` : '', r.details].filter(Boolean).join(' · '))),
           h('span', { class: 'radio-result-add', html: svg(already ? 'check' : 'plus') }));
         item.addEventListener('click', () => {
           if (item.classList.contains('is-added')) return;
-          ctx.lists?.[f.target]?.add({ name: r.name, idealo: r.url, ledenicheur: '', image: r.image || undefined });
+          const isIdealo = r.shop === 'idealo';
+          ctx.lists?.[f.target]?.add({ name: r.name, idealo: isIdealo ? r.url : '', ledenicheur: isIdealo ? r.match?.url ?? '' : r.url, image: r.image || undefined });
           item.classList.add('is-added');
           item.querySelector('.radio-result-add').innerHTML = svg('check');
         });

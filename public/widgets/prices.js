@@ -1,6 +1,6 @@
 // Comparateur de prix : meilleur prix de chaque produit entre Idealo, LeDénicheur et une boutique,
 // écart avec les autres sources, évolution jour par jour et prix cible (via /api/data).
-import { h, dataWidget } from '../lib.js';
+import { h, svg, dataWidget } from '../lib.js';
 
 const link = (url, attrs, ...children) => h('a', { href: url, target: '_blank', rel: 'noopener noreferrer', ...attrs }, ...children);
 
@@ -34,12 +34,12 @@ function product(p) {
   const money = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: p.currency || 'EUR' });
   const best = p.best;
   const atLowest = best && p.history.length > 1 && best.price <= p.lowest;
-  const others = p.offers.filter((o) => o.url !== best?.url);
+  const others = best ? p.offers.filter((o) => o.url !== best.url) : p.offers;
   const bestCount = p.offers.find((o) => o.url === best?.url)?.count;
 
   return h('div', { class: `pr-item${p.reached ? ' is-reached' : ''}${best ? '' : ' is-missing'}` },
     link(best?.url ?? p.offers[0].url, { class: 'pr-thumb', tabindex: '-1', 'aria-hidden': 'true' },
-      p.image ? h('img', { src: p.image, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' }) : null),
+      p.image ? h('img', { src: p.image, alt: '', loading: 'lazy', referrerpolicy: 'no-referrer' }) : h('span', { class: 'pr-noimg', html: svg('tag') })),
     h('div', { class: 'pr-main' },
       link(best?.url ?? p.offers[0].url, { class: 'pr-name', title: p.name }, p.name),
       h('div', { class: 'pr-offers' },
@@ -47,7 +47,8 @@ function product(p) {
         others.map((o) => (o.price
           ? link(o.url, { class: 'pr-offer', title: o.stale ? 'Dernier prix connu (site injoignable)' : `${o.count ? `${o.count} offres, ` : ''}jusqu’à ${o.high ? money.format(o.high) : '–'}` },
             o.shop, h('span', {}, `+${money.format(o.price - best.price)}`))
-          : link(o.url, { class: 'pr-offer is-error', title: o.error ?? 'Prix indisponible' }, o.shop, h('span', {}, '?')))))),
+          : link(o.url, { class: 'pr-offer is-error', title: o.error ?? 'Prix indisponible' }, o.shop, h('span', {}, '?'))))),
+      best ? null : h('small', { class: 'pr-error' }, `Prix indisponible : ${p.offers[0]?.error ?? 'aucune source'}`)),
     h('div', { class: 'pr-side' },
       best
         ? h('strong', { class: 'pr-price', title: bestCount ? `${bestCount} offres sur ${best.shop}` : null }, money.format(best.price))
