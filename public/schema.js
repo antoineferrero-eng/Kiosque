@@ -4,6 +4,7 @@
 // Types : text, url, number, toggle, select, color, icon, checks, list, game, ytchannel,
 //         secret (clé gardée sur le serveur, jamais dans la config), theme, datetime,
 //         radiosearch / pricesearch (recherche de radios / de produits qui remplit la liste `target`),
+//         shops (boutiques retenues par le comparateur de prix),
 //         note (simple texte d'aide)
 // Regroupements : { row: [champs] } (côte à côte) et { group: 'Titre', fields: [champs] } (repliable)
 // Une liste : { type: 'list', fields, required (clé ou fonction), summary, summaryIcon, newItem, addLabel }
@@ -345,11 +346,16 @@ export const TYPES = {
 
   prices: {
     label: 'Comparateur de prix',
-    description: 'Meilleur prix de tes produits sur Idealo, LeDénicheur ou une boutique, avec son évolution et un prix cible.',
+    description: 'Les offres de tes boutiques préférées réunies depuis Idealo et LeDénicheur, avec la courbe du prix sur 3 mois et un prix cible.',
     icon: 'tag',
-    defaults: () => ({ name: 'Prix', icon: 'i:tag', tint: '#2dd4bf', span: 4, products: [] }),
+    defaults: () => ({ name: 'Prix', icon: 'i:tag', tint: '#2dd4bf', span: 4, products: [], shops: [], marketplace: true }),
     fields: [
       { key: 'search', label: 'Ajouter un produit', type: 'pricesearch', target: 'products' },
+      { key: 'shops', label: 'Boutiques', type: 'shops' },
+      { row: [
+        { key: 'marketplace', label: 'Vendeurs tiers (marketplace)', type: 'toggle', default: true },
+        { key: 'maxOffers', label: 'Offres listées', type: 'number', min: 1, max: 20, default: 6 },
+      ] },
       {
         key: 'products', label: 'Produits suivis', type: 'list', addLabel: 'Ajouter un produit à la main',
         required: (p) => p.idealo || p.ledenicheur || p.shop,
@@ -364,7 +370,7 @@ export const TYPES = {
           { key: 'target', label: 'Prix cible (€)', type: 'number', min: 0, placeholder: 'Aucun', hint: 'Le produit est mis en avant quand le meilleur prix passe dessous.' },
         ],
       },
-      { type: 'note', text: 'Les prix sont relus toutes les 3 heures et gardés jour par jour pour tracer leur évolution. LeDénicheur ne permet pas la recherche automatique : ouvre la fiche du produit sur ledenicheur.fr et colle son lien.' },
+      { type: 'note', text: 'Les offres sont relues toutes les 3 heures. La courbe reprend l’historique publié par LeDénicheur, complété chaque jour par les relevés de Kiosque pour chaque boutique : mets les deux liens pour un comparatif complet.' },
     ],
   },
 

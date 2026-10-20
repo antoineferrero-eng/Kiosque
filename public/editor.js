@@ -760,6 +760,8 @@ function field(obj, f, ctx) {
       return radioSearchField(f, ctx, id);
     case 'pricesearch':
       return priceSearchField(f, ctx, id);
+    case 'shops':
+      return shopsField(obj, f, id);
     case 'datetime': {
       control = h('input', { id, class: 'input', type: 'datetime-local', 'data-key': f.key });
       control.value = obj[f.key] ?? '';
@@ -989,6 +991,67 @@ function radioSearchField(f, ctx, id) {
     h('div', { class: 'input-group' }, input, btn),
     hint,
     results);
+}
+
+// Boutiques retenues par le comparateur : puces à cocher. D'abord celles qui vendent déjà les produits suivis
+// (lues dans les offres de la section), puis les plus connues. Aucune cochée = toutes.
+const POPULAR_SHOPS = ['Amazon', 'Cdiscount', 'Fnac', 'Darty', 'Boulanger', 'LDLC', 'Materiel.net', 'TopAchat', 'Rue du Commerce', 'Alternate', 'Rakuten', 'E.Leclerc', 'Carrefour', 'Auchan', 'Kaufland', 'Back Market'];
+function shopsField(obj, f, id) {
+  if (!Array.isArray(obj[f.key])) obj[f.key] = [];
+  const selected = obj[f.key];
+  const norm = (s) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\.(com|fr|eu|net)$/, '').replace(/[^a-z0-9]/g, '');
+  const indexOf = (name) => selected.findIndex((s) => norm(s) === norm(name));
+  let seen = null;
+  const chips = h('div', { class: 'shop-chips' });
+  const hint = h('p', { class: 'field-hint' });
+  const clear = h('button', { class: 'link-btn', type: 'button' }, 'Tout décocher');
+  clear.addEventListener('click', () => { selected.splice(0); render(); });
+
+  function render() {
+    const names = [];
+    const add = (n) => { if (n && !names.some((x) => norm(x) === norm(n))) names.push(n); };
+    selected.forEach(add);
+    (seen ?? []).forEach(add);
+    POPULAR_SHOPS.forEach(add);
+    chips.replaceChildren(...names.map((name) => {
+      const on = indexOf(name) >= 0;
+      const absent = seen && !seen.some((s) => norm(s) === norm(name));
+      const chip = h('button', { class: `shop-chip${on ? ' is-on' : ''}${absent ? ' is-absent' : ''}`, type: 'button', 'aria-pressed': String(on),
+        title: absent ? 'Ne vend aucun des produits suivis pour l’instant' : null }, on ? h('span', { html: svg('check') }) : null, name);
+      chip.addEventListener('click', () => {
+        const i = indexOf(name);
+        if (i >= 0) selected.splice(i, 1); else selected.push(name);
+        render();
+      });
+      return chip;
+    }));
+    hint.textContent = selected.length
+      ? `Seules les offres de ${selected.length > 1 ? `ces ${selected.length} boutiques` : 'cette boutique'} comptent, sur Idealo comme sur LeDénicheur.`
+      : 'Aucune boutique cochée : toutes les offres comptent. Coche celles où tu veux acheter.';
+    clear.hidden = !selected.length;
+  }
+
+  const input = h('input', { id, class: 'input', type: 'text', placeholder: 'Autre boutique (nom affiché sur Idealo ou LeDénicheur)', spellcheck: 'false' });
+  const addBtn = h('button', { class: 'btn', type: 'button', html: `${svg('plus')}<span>Ajouter</span>` });
+  const addTyped = () => {
+    const name = input.value.trim();
+    if (!name) return;
+    if (indexOf(name) < 0) selected.push(name);
+    input.value = '';
+    render();
+  };
+  addBtn.addEventListener('click', addTyped);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); addTyped(); } });
+
+  render();
+  if (obj.id) {
+    api(`/api/data?section=${encodeURIComponent(obj.id)}`).then((d) => { seen = d.shopsSeen ?? []; render(); }).catch(() => {});
+  }
+  return h('div', { class: 'field' },
+    h('div', { class: 'field-label-row' }, h('span', { class: 'field-label' }, f.label), clear),
+    chips,
+    h('div', { class: 'input-group' }, input, addBtn),
+    hint);
 }
 
 // Recherche de produits (Idealo, LeDénicheur) : un clic ajoute le produit à la liste `target`

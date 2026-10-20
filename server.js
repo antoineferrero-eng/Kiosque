@@ -8,7 +8,8 @@ import { readFileSync } from 'node:fs';
 import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PROVIDERS, searchRadios, searchPrices } from './providers.js';
+import { PROVIDERS, searchRadios } from './providers.js';
+import { searchPrices } from './prices.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 try { process.loadEnvFile(path.join(ROOT, '.env')); } catch { /* pas de fichier .env */ }

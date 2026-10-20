@@ -20,7 +20,7 @@ Un dashboard auto-hébergé, moderne et entièrement configurable depuis la page
 | **Jeux gratuits** | Jeux offerts en ce moment sur Epic Games, Steam, GOG… avec date de fin ([Epic](https://store.epicgames.com/fr/free-games) + [GamerPower](https://www.gamerpower.com)) |
 | **Bons plans PC** | Meilleures promos de jeux PC avec réduction et note Steam ([CheapShark](https://www.cheapshark.com)) |
 | **Lancements spatiaux** | Prochains décollages de fusées avec compte à rebours ([The Space Devs](https://thespacedevs.com)) |
-| **Comparateur de prix** | Meilleur prix de tes produits entre [Idealo](https://www.idealo.fr), [LeDénicheur](https://ledenicheur.fr) et une boutique, écart entre les sites, courbe de prix jour par jour et prix cible mis en avant. Recherche Idealo intégrée dans les réglages |
+| **Comparateur de prix** | Les offres de chaque boutique réunies depuis [Idealo](https://www.idealo.fr) et [LeDénicheur](https://ledenicheur.fr), filtrées sur les marchands que tu choisis (Cdiscount, Amazon, Fnac…, avec ou sans vendeurs tiers). Un clic sur un produit déplie la courbe du prix sur 1 ou 3 mois (survolable), le plus bas, la moyenne, le plus haut et la liste des offres. Prix cible mis en avant, recherche intégrée dans les réglages |
 | **Crypto** | Cours, variation 24 h et mini-graphique sur 7 jours ([CoinGecko](https://www.coingecko.com)) |
 | **Éphéméride** | Image du jour et « ce jour-là dans l'histoire » ([Wikipédia](https://fr.wikipedia.org)) |
 | **Qui est ce Pokémon ?** | Quiz sur silhouette, jusqu'à la génération de ton choix ([PokeAPI](https://pokeapi.co)) |
@@ -35,7 +35,7 @@ Toutes ces sources sont gratuites et sans clé, sauf l'e-sport (clé PandaScore 
 
 <p align="center"><img src="docs/images/minuteur.jpg" alt="Le minuteur et son historique" width="520"></p>
 
-<p align="center"><img src="docs/images/comparateur-prix.png" alt="Le comparateur de prix" width="420"></p>
+<p align="center"><img src="docs/images/comparateur-prix.png" alt="Le comparateur de prix, produit déplié" width="460"></p>
 
 Et aussi : sections repliables, déplaçables et redimensionnables (le contenu s'adapte : les tuiles s'étirent ou changent de nombre de colonnes, les listes s'allongent), statut global des services en haut de page, et un affichage pensé pour le mobile.
 
@@ -245,5 +245,5 @@ Les options de chaque type sont visibles dans l'éditeur, ou décrites dans `pub
 ## À savoir
 
 - Les notes et le record du quiz sont propres à chaque navigateur.
-- Comparateur de prix : chaque page produit est relue au plus toutes les 3 heures, et l'historique des prix est gardé dans `data/prices.json` (120 jours). Idealo et LeDénicheur refusent souvent les requêtes venant d'un serveur hébergé (VPS, cloud) : Kiosque passe alors par un relais de lecture ([r.jina.ai](https://jina.ai/reader), gratuit, sans clé), qui ne reçoit que l'adresse des pages produit et des recherches. La recherche passe par Idealo, ou par DuckDuckGo s'il est bloqué. Si une boutique refuse même le relais (souvent Amazon), sa pastille affiche « ? ».
+- Comparateur de prix : chaque page produit est relue au plus toutes les 3 heures. La courbe reprend les 3 mois d'historique publiés par LeDénicheur (le plus bas et son marchand à chaque changement), complétés chaque jour par les relevés de Kiosque pour chaque boutique, gardés dans `data/prices.json` (120 jours) : mets les deux liens pour une courbe complète dès le premier jour. Avec un filtre de boutiques, la courbe ne garde que les périodes où l'une d'elles était la moins chère, plus les relevés quotidiens. Idealo et LeDénicheur refusent souvent les requêtes venant d'un serveur hébergé (VPS, cloud) : Kiosque passe alors par un relais de lecture ([r.jina.ai](https://jina.ai/reader), gratuit, sans clé), qui ne reçoit que l'adresse des pages produit et des recherches. La recherche passe par Idealo, ou par DuckDuckGo s'il est bloqué.
 - Le dossier `data/` et les fichiers `ma-config*.json` sont exclus de Git : ils contiennent ta configuration et tes clés.

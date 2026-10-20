@@ -3,7 +3,7 @@ FROM node:22-alpine
 WORKDIR /app
 ENV NODE_ENV=production PORT=3010 DATA_DIR=/app/data
 
-COPY package.json server.js providers.js config.default.json ./
+COPY package.json server.js providers.js prices.js config.default.json ./
 COPY public ./public
 
 # La config modifiée depuis la page est enregistrée ici (à garder dans un volume)
