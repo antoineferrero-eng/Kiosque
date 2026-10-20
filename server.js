@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PROVIDERS, searchRadios } from './providers.js';
+import { PROVIDERS, searchRadios, searchPrices } from './providers.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 try { process.loadEnvFile(path.join(ROOT, '.env')); } catch { /* pas de fichier .env */ }
@@ -30,7 +30,7 @@ const BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36
 
 const SECTION_TYPES = new Set([
   'links', 'rss', 'iframe', 'esport', 'youtube', 'flags', 'notes',
-  'weather', 'radio', 'freegames', 'deals', 'launches', 'crypto', 'ephemeris', 'pokemon', 'webstatus', 'countdown', 'fun', 'timer',
+  'weather', 'radio', 'freegames', 'deals', 'launches', 'crypto', 'ephemeris', 'pokemon', 'webstatus', 'countdown', 'fun', 'timer', 'prices',
 ]);
 
 const MIME = {
@@ -578,7 +578,7 @@ async function getWidgetData(sectionId, force) {
   if (!sec) throw httpError(404, `Section « ${sectionId} » introuvable`);
   const provider = PROVIDERS[sec.type];
   if (!provider) throw httpError(400, `La section « ${sec.name ?? sec.id} » n’a pas de données à charger`);
-  return memo(`data:${sec.id}`, provider.ttl, force, () => provider.load(sec));
+  return memo(`data:${sec.id}`, provider.ttl, force, () => provider.load(sec, { dataDir: DATA_DIR }));
 }
 
 // ---------------------------------------------------------------- HTTP
@@ -630,6 +630,7 @@ const routes = {
   'GET /api/esport': (req, url) => getEsport(url.searchParams.get('section') ?? '', url.searchParams.has('force')),
   'GET /api/data': (req, url) => getWidgetData(url.searchParams.get('section') ?? '', url.searchParams.has('force')),
   'GET /api/radio/search': (req, url) => { requireAuth(req); return searchRadios(url.searchParams.get('q')); },
+  'GET /api/prices/search': (req, url) => { requireAuth(req); return searchPrices(url.searchParams.get('q')); },
   'GET /healthz': () => ({ ok: true }),
 };
 

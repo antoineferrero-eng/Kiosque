@@ -20,6 +20,7 @@ Un dashboard auto-hébergé, moderne et entièrement configurable depuis la page
 | **Jeux gratuits** | Jeux offerts en ce moment sur Epic Games, Steam, GOG… avec date de fin ([Epic](https://store.epicgames.com/fr/free-games) + [GamerPower](https://www.gamerpower.com)) |
 | **Bons plans PC** | Meilleures promos de jeux PC avec réduction et note Steam ([CheapShark](https://www.cheapshark.com)) |
 | **Lancements spatiaux** | Prochains décollages de fusées avec compte à rebours ([The Space Devs](https://thespacedevs.com)) |
+| **Comparateur de prix** | Meilleur prix de tes produits entre [Idealo](https://www.idealo.fr), [LeDénicheur](https://ledenicheur.fr) et une boutique, écart entre les sites, courbe de prix jour par jour et prix cible mis en avant. Recherche Idealo intégrée dans les réglages |
 | **Crypto** | Cours, variation 24 h et mini-graphique sur 7 jours ([CoinGecko](https://www.coingecko.com)) |
 | **Éphéméride** | Image du jour et « ce jour-là dans l'histoire » ([Wikipédia](https://fr.wikipedia.org)) |
 | **Qui est ce Pokémon ?** | Quiz sur silhouette, jusqu'à la génération de ton choix ([PokeAPI](https://pokeapi.co)) |
@@ -33,6 +34,8 @@ Toutes ces sources sont gratuites et sans clé, sauf l'e-sport (clé PandaScore 
 ![Les widgets](docs/images/widgets.jpg)
 
 <p align="center"><img src="docs/images/minuteur.jpg" alt="Le minuteur et son historique" width="520"></p>
+
+<p align="center"><img src="docs/images/comparateur-prix.png" alt="Le comparateur de prix" width="420"></p>
 
 Et aussi : sections repliables, déplaçables et redimensionnables (le contenu s'adapte : les tuiles s'étirent ou changent de nombre de colonnes, les listes s'allongent), statut global des services en haut de page, et un affichage pensé pour le mobile.
 
@@ -240,4 +243,5 @@ Les options de chaque type sont visibles dans l'éditeur, ou décrites dans `pub
 ## À savoir
 
 - Les notes et le record du quiz sont propres à chaque navigateur.
+- Comparateur de prix : chaque page produit est relue au plus toutes les 3 heures, et l'historique des prix est gardé dans `data/prices.json` (120 jours). LeDénicheur bloque sa recherche aux robots : ouvre la fiche du produit sur le site et colle son lien dans les réglages. Certaines boutiques (souvent Amazon) refusent aussi la lecture : la pastille du site affiche alors « ? ».
 - Le dossier `data/` et les fichiers `ma-config*.json` sont exclus de Git : ils contiennent ta configuration et tes clés.

@@ -14,6 +14,7 @@ import { buildEphemeris, buildWebStatus, buildFun } from './widgets/daily.js';
 import { buildPokemon } from './widgets/pokemon.js';
 import { buildCountdown } from './widgets/countdown.js';
 import { buildTimer } from './widgets/timer.js';
+import { buildPrices } from './widgets/prices.js';
 
 const BUILDERS = {
   links: buildLinks,
@@ -35,6 +36,7 @@ const BUILDERS = {
   countdown: buildCountdown,
   fun: buildFun,
   timer: buildTimer,
+  prices: buildPrices,
 };
 
 let config;
@@ -169,7 +171,7 @@ function watchSize(sec, card, body) {
 
 // Listes dans une carte de hauteur fixe : plutôt que de défiler, on masque les éléments qui ne rentrent pas.
 const FIT_ITEMS = {
-  freegames: '.game', deals: '.deal', ephemeris: '.eph-event', webstatus: '.ws-row', crypto: '.coin',
+  freegames: '.game', deals: '.deal', ephemeris: '.eph-event', webstatus: '.ws-row', crypto: '.coin', prices: '.pr-item',
   launches: '.launch-row', countdown: '.cd-row', radio: '.radio-station', links: '.link:not(.add-tile)',
 };
 function fitItems(sec, card, body) {

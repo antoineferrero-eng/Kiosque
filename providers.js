@@ -1,6 +1,9 @@
 // Fournisseurs de données des widgets : chacun charge et met en forme les données d'une section.
 // Tous utilisent des API publiques sans clé. `ttl` = durée de cache côté serveur (ms).
 
+import { readFile, writeFile, rename, mkdir } from 'node:fs/promises';
+import path from 'node:path';
+
 // ASCII uniquement : certains services refusent les en-têtes avec accents
 const UA = 'Kiosque/1.0 (self-hosted dashboard)';
 const httpError = (status, message) => Object.assign(new Error(message), { status });
@@ -337,4 +340,205 @@ export async function searchRadios(query) {
   }));
 }
 
-export const PROVIDERS = { weather, freegames, deals, launches, crypto, ephemeris, webstatus, fun };
+// ---------------------------------------------------------------- comparateur de prix (Idealo, LeDénicheur…)
+// Lit le prix le plus bas dans les données structurées (JSON-LD Product) des pages produit. Marche avec
+// Idealo, LeDénicheur et la plupart des boutiques. Chaque page est relue au plus toutes les 3 h, et le prix
+// du jour est gardé dans data/prices.json pour tracer l'évolution.
+
+const BROWSER_HEADERS = {
+  'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130 Safari/537.36',
+  'accept-language': 'fr-FR,fr;q=0.9,en;q=0.6',
+  accept: 'text/html,application/xhtml+xml',
+};
+const PAGE_TTL = 3 * 3600_000;
+const HISTORY_DAYS = 120;
+
+const SHOPS = [
+  [/(^|\.)idealo\./, 'idealo'],
+  [/(^|\.)(ledenicheur\.fr|prisjakt\.|pricespy\.)/, 'LeDénicheur'],
+  [/(^|\.)amazon\./, 'Amazon'],
+  [/(^|\.)fnac\.com$/, 'Fnac'],
+  [/(^|\.)darty\.com$/, 'Darty'],
+  [/(^|\.)cdiscount\.com$/, 'Cdiscount'],
+  [/(^|\.)boulanger\.com$/, 'Boulanger'],
+  [/(^|\.)ldlc\.com$/, 'LDLC'],
+  [/(^|\.)rakuten\./, 'Rakuten'],
+];
+const shopName = (url) => {
+  const host = new URL(url).hostname.replace(/^www\./, '');
+  return SHOPS.find(([re]) => re.test(host))?.[1] ?? host;
+};
+
+const decodeHtml = (s) => String(s ?? '')
+  .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
+  .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
+  .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+  .replace(/\s+/g, ' ').trim();
+// 179.49, "179,49 €", "1 299,00" → nombre
+const toNumber = (v) => {
+  if (typeof v === 'number') return Number.isFinite(v) && v > 0 ? v : null;
+  let t = String(v ?? '').replace(/[^\d.,]/g, '');
+  t = /,\d{1,2}$/.test(t) ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+  const n = Number(t);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+
+async function fetchPage(url) {
+  let res;
+  try {
+    res = await fetch(url, { headers: BROWSER_HEADERS, redirect: 'follow', signal: AbortSignal.timeout(15_000) });
+  } catch (err) {
+    throw httpError(502, err.name === 'TimeoutError' ? 'site trop lent' : 'site injoignable');
+  }
+  if ([403, 429, 503].includes(res.status)) throw httpError(502, 'le site bloque la lecture automatique');
+  if (!res.ok) throw httpError(502, `le site a répondu HTTP ${res.status}`);
+  return res.text();
+}
+
+// Toutes les fiches Product des blocs JSON-LD (y compris dans @graph ou en tableau)
+function ldProducts(html) {
+  const out = [];
+  const walk = (node) => {
+    if (Array.isArray(node)) return node.forEach(walk);
+    if (!node || typeof node !== 'object') return;
+    if ([].concat(node['@type'] ?? []).some((t) => /Product/.test(t))) out.push(node);
+    if (node['@graph']) walk(node['@graph']);
+  };
+  for (const m of html.matchAll(/<script[^>]+application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
+    try { walk(JSON.parse(m[1])); } catch { /* bloc illisible */ }
+  }
+  return out;
+}
+
+function parseProductPage(html) {
+  const meta = (name) => decodeHtml(
+    html.match(new RegExp(`<meta[^>]+(?:property|name|itemprop)=["']${name}["'][^>]+content=["']([^"']*)`, 'i'))?.[1]
+    ?? html.match(new RegExp(`<meta[^>]+content=["']([^"']*)["'][^>]+(?:property|name|itemprop)=["']${name}["']`, 'i'))?.[1]);
+  for (const p of ldProducts(html)) {
+    const offers = [].concat(p.offers ?? []);
+    const lows = offers.flatMap((o) => [o.lowPrice, o.price, o.priceSpecification?.price].map(toNumber)).filter(Boolean);
+    if (!lows.length) continue;
+    const highs = offers.flatMap((o) => [o.highPrice, o.price].map(toNumber)).filter(Boolean);
+    const count = offers.reduce((n, o) => n + (Number(o.offerCount) || (o['@type'] === 'Offer' ? 1 : 0)), 0);
+    const image = [].concat(p.image ?? [])[0];
+    return {
+      name: decodeHtml(p.name) || null,
+      image: (typeof image === 'string' ? image : image?.url) || meta('og:image') || null,
+      price: Math.min(...lows),
+      high: highs.length ? Math.max(...highs) : null,
+      count: count || null,
+      currency: offers.find((o) => o.priceCurrency)?.priceCurrency ?? 'EUR',
+    };
+  }
+  // pas de JSON-LD : balises meta des boutiques (Open Graph produit, microdonnées)
+  const price = toNumber(meta('product:price:amount') || meta('og:price:amount') || meta('price'));
+  if (price) return { name: meta('og:title') || null, image: meta('og:image') || null, price, high: null, count: null, currency: meta('product:price:currency') || 'EUR' };
+  throw httpError(502, 'prix introuvable sur la page');
+}
+
+// Une page est relue au plus toutes les 3 h (20 min après une erreur). En cas d'échec, on garde le dernier prix lu.
+const pageCache = new Map();
+function readPrice(url) {
+  const entry = pageCache.get(url) ?? {};
+  pageCache.set(url, entry);
+  if (entry.pending) return entry.pending;
+  if (entry.at && Date.now() - entry.at < (entry.error ? 20 * 60_000 : PAGE_TTL)) {
+    return entry.error && !entry.data ? Promise.reject(entry.error) : Promise.resolve(entry.error ? { ...entry.data, stale: true } : entry.data);
+  }
+  entry.pending = fetchPage(url).then(parseProductPage)
+    .then((data) => { entry.data = data; entry.error = null; return data; },
+      (err) => { entry.error = err; if (entry.data) return { ...entry.data, stale: true }; throw err; })
+    .finally(() => { entry.at = Date.now(); entry.pending = null; });
+  return entry.pending;
+}
+
+// Historique : { url: [[AAAA-MM-JJ, prix], …] }, un point par jour (le plus bas du jour)
+let historyQueue = Promise.resolve();
+function recordPrices(dataDir, points) {
+  const file = path.join(dataDir, 'prices.json');
+  const task = historyQueue.then(async () => {
+    let history = {};
+    try { history = JSON.parse(await readFile(file, 'utf8')); } catch { /* premier relevé */ }
+    const today = new Intl.DateTimeFormat('en-CA', { timeZone: TZ() }).format(new Date());
+    const oldest = new Date(Date.now() - HISTORY_DAYS * 86_400_000).toISOString().slice(0, 10);
+    let changed = false;
+    for (const [url, price] of points) {
+      const series = (history[url] ?? []).filter(([day]) => day >= oldest);
+      const last = series.at(-1);
+      if (last?.[0] !== today) { series.push([today, price]); changed = true; } else if (price < last[1]) { last[1] = price; changed = true; }
+      history[url] = series;
+    }
+    if (changed) {
+      await mkdir(dataDir, { recursive: true });
+      await writeFile(`${file}.tmp`, JSON.stringify(history) + '\n', 'utf8');
+      await rename(`${file}.tmp`, file);
+    }
+    return history;
+  });
+  historyQueue = task.catch(() => {});
+  return task;
+}
+
+const productUrls = (p) => [p.idealo, p.ledenicheur, p.shop]
+  .map((u) => String(u ?? '').trim()).filter((u) => /^https?:\/\/[^/]+/i.test(u));
+
+const prices = {
+  ttl: 20 * 60_000,
+  async load(sec, { dataDir } = {}) {
+    const products = (sec.products ?? []).filter((p) => productUrls(p).length);
+    const read = await Promise.all(products.map((p) => Promise.all(productUrls(p).map(async (url) => {
+      try { return { url, shop: shopName(url), ...(await readPrice(url)) }; } catch (err) { return { url, shop: shopName(url), error: err.message }; }
+    }))));
+    const points = read.flat().filter((o) => o.price && !o.stale).map((o) => [o.url, o.price]);
+    const history = dataDir ? await recordPrices(dataDir, points).catch(() => ({})) : {};
+
+    return {
+      products: products.map((p, i) => {
+        const offers = read[i].sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+        const best = offers.find((o) => o.price) ?? null;
+        // évolution du meilleur prix : le plus bas de toutes les sources, jour par jour
+        const byDay = new Map();
+        for (const o of offers) for (const [day, price] of history[o.url] ?? []) byDay.set(day, Math.min(byDay.get(day) ?? Infinity, price));
+        const series = [...byDay].sort((a, b) => a[0].localeCompare(b[0])).slice(-60);
+        const target = toNumber(p.target);
+        return {
+          name: p.name || best?.name || offers[0].shop,
+          image: offers.find((o) => o.image)?.image ?? null,
+          currency: best?.currency ?? 'EUR',
+          best: best && { price: best.price, shop: best.shop, url: best.url },
+          offers: offers.map((o) => ({ url: o.url, shop: o.shop, price: o.price ?? null, high: o.high ?? null, count: o.count ?? null, error: o.error ?? null, stale: Boolean(o.stale) })),
+          history: series,
+          lowest: series.length ? Math.min(...series.map(([, v]) => v)) : best?.price ?? null,
+          target,
+          reached: Boolean(target && best && best.price <= target),
+        };
+      }),
+    };
+  },
+};
+
+// Recherche de produits sur Idealo : nom, prix le plus bas, nombre d'offres et image, en une seule page
+export async function searchPrices(query) {
+  const q = String(query ?? '').trim();
+  if (!q) throw httpError(400, 'Tape le nom d’un produit (ex. AirPods Pro 2, Switch 2)');
+  const html = await fetchPage(`https://www.idealo.fr/prechcat.html?q=${encodeURIComponent(q)}`)
+    .catch((err) => { throw httpError(502, `Recherche Idealo impossible : ${err.message}`); });
+  const seen = new Set();
+  return html.split(/class="sr-resultList__item/).slice(1).flatMap((chunk) => {
+    const url = chunk.match(/href="(https:\/\/www\.idealo\.fr\/prix\/\d+\/[^"]+\.html)"/)?.[1];
+    const name = decodeHtml(chunk.match(/productSummary__title[^>]*>([^<]+)</)?.[1]);
+    if (!url || !name || seen.has(url)) return [];
+    seen.add(url);
+    const priceText = chunk.match(/detailedPriceInfo__price[^>]*>([\s\S]*?)<\/div>/)?.[1]?.replace(/<span[^>]*>[^<]*<\/span>/g, '') ?? '';
+    return [{
+      name,
+      url,
+      price: toNumber(decodeHtml(priceText)),
+      count: Number(chunk.match(/offerCount[^>]*>(\d+)/)?.[1]) || null,
+      image: chunk.match(/<img[^>]+src="([^"]+)"/)?.[1] ?? null,
+      details: decodeHtml(chunk.match(/productSummary__mainDetails[^>]*>\s*<span>([^<]+)/)?.[1]),
+    }];
+  }).slice(0, 10);
+}
+
+export const PROVIDERS = { weather, freegames, deals, launches, crypto, ephemeris, webstatus, fun, prices };

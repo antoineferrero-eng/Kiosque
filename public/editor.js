@@ -758,6 +758,8 @@ function field(obj, f, ctx) {
       return themeField(obj, f);
     case 'radiosearch':
       return radioSearchField(f, ctx, id);
+    case 'pricesearch':
+      return priceSearchField(f, ctx, id);
     case 'datetime': {
       control = h('input', { id, class: 'input', type: 'datetime-local', 'data-key': f.key });
       control.value = obj[f.key] ?? '';
@@ -969,6 +971,52 @@ function radioSearchField(f, ctx, id) {
         item.addEventListener('click', () => {
           if (item.classList.contains('is-added')) return;
           ctx.lists?.[f.target]?.add({ name: r.name, url: r.url, favicon: r.favicon || undefined });
+          item.classList.add('is-added');
+          item.querySelector('.radio-result-add').innerHTML = svg('check');
+        });
+        return item;
+      }));
+    } catch (err) {
+      hint.textContent = err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+  btn.addEventListener('click', search);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); search(); } });
+  return h('div', { class: 'field' },
+    h('label', { class: 'field-label', for: id }, f.label),
+    h('div', { class: 'input-group' }, input, btn),
+    hint,
+    results);
+}
+
+// Recherche de produits sur Idealo : un clic ajoute le produit à la liste `target`
+function priceSearchField(f, ctx, id) {
+  const input = h('input', { id, class: 'input', type: 'search', placeholder: 'AirPods Pro 2, Switch 2, RTX 5070…', spellcheck: 'false' });
+  const btn = h('button', { class: 'btn', type: 'button', html: `${svg('search')}<span>Chercher</span>` });
+  const results = h('div', { class: 'radio-results' });
+  const hint = h('p', { class: 'field-hint' }, 'Cherche un produit sur Idealo, puis clique pour le suivre. Tu peux ensuite lui ajouter un lien LeDénicheur.');
+  const euro = new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' });
+
+  async function search() {
+    const q = input.value.trim();
+    if (!q) return;
+    btn.disabled = true;
+    hint.textContent = 'Recherche sur Idealo…';
+    try {
+      const found = await api(`/api/prices/search?q=${encodeURIComponent(q)}`, { token });
+      hint.textContent = found.length ? `${found.length} produit${found.length > 1 ? 's' : ''} trouvé${found.length > 1 ? 's' : ''}` : 'Aucun produit trouvé.';
+      results.replaceChildren(...found.map((r) => {
+        const already = ctx.lists?.[f.target]?.has((p) => p.idealo === r.url);
+        const item = h('button', { class: `radio-result price-result${already ? ' is-added' : ''}`, type: 'button', title: r.details || r.name },
+          h('span', { class: 'ico pr-thumb' }, r.image ? h('img', { src: r.image, alt: '', loading: 'lazy' }) : null),
+          h('span', { class: 'radio-result-text' }, h('strong', {}, r.name),
+            h('small', {}, [r.price ? `dès ${euro.format(r.price)}` : '', r.count ? `${r.count} offre${r.count > 1 ? 's' : ''}` : '', r.details].filter(Boolean).join(' · '))),
+          h('span', { class: 'radio-result-add', html: svg(already ? 'check' : 'plus') }));
+        item.addEventListener('click', () => {
+          if (item.classList.contains('is-added')) return;
+          ctx.lists?.[f.target]?.add({ name: r.name, idealo: r.url, ledenicheur: '', image: r.image || undefined });
           item.classList.add('is-added');
           item.querySelector('.radio-result-add').innerHTML = svg('check');
         });

@@ -3,9 +3,10 @@
 // Un champ : { key, label, type, default?, hint?, placeholder?, options?, min?, max? }
 // Types : text, url, number, toggle, select, color, icon, checks, list, game, ytchannel,
 //         secret (clé gardée sur le serveur, jamais dans la config), theme, datetime,
-//         radiosearch (recherche de radios qui remplit la liste `target`), note (simple texte d'aide)
+//         radiosearch / pricesearch (recherche de radios / de produits qui remplit la liste `target`),
+//         note (simple texte d'aide)
 // Regroupements : { row: [champs] } (côte à côte) et { group: 'Titre', fields: [champs] } (repliable)
-// Une liste : { type: 'list', fields, required, summary, summaryIcon, newItem, addLabel }
+// Une liste : { type: 'list', fields, required (clé ou fonction), summary, summaryIcon, newItem, addLabel }
 
 export const SPANS = [
   { value: 3, label: '1/4' },
@@ -45,6 +46,7 @@ export const COMPACT_STEPS = {
   launches: { h: [330, 200], w: [260, 0] },
   webstatus: { h: [260, 150], w: [220, 0] },
   crypto: { h: [220, 140], w: [0, 0] },
+  prices: { h: [240, 150], w: [0, 0] },
   fun: { h: [200, 0], w: [0, 0] },
   ephemeris: { h: [380, 230], w: [0, 0] },
   freegames: { h: [320, 0], w: [330, 0] },
@@ -341,6 +343,31 @@ export const TYPES = {
     ],
   },
 
+  prices: {
+    label: 'Comparateur de prix',
+    description: 'Meilleur prix de tes produits sur Idealo, LeDénicheur ou une boutique, avec son évolution et un prix cible.',
+    icon: 'tag',
+    defaults: () => ({ name: 'Prix', icon: 'i:tag', tint: '#2dd4bf', span: 4, products: [] }),
+    fields: [
+      { key: 'search', label: 'Ajouter un produit', type: 'pricesearch', target: 'products' },
+      {
+        key: 'products', label: 'Produits suivis', type: 'list', addLabel: 'Ajouter un produit à la main',
+        required: (p) => p.idealo || p.ledenicheur || p.shop,
+        summary: (p) => p.name || p.idealo || p.ledenicheur || p.shop,
+        summaryIcon: (p) => p.image || 'i:tag',
+        newItem: () => ({ name: '', idealo: '', ledenicheur: '' }),
+        fields: [
+          { key: 'name', label: 'Nom', type: 'text', placeholder: 'Repris de la page si vide' },
+          { key: 'idealo', label: 'Page Idealo', type: 'url', placeholder: 'https://www.idealo.fr/prix/…' },
+          { key: 'ledenicheur', label: 'Page LeDénicheur', type: 'url', placeholder: 'https://ledenicheur.fr/product.php?p=…' },
+          { key: 'shop', label: 'Autre boutique (facultatif)', type: 'url', placeholder: 'https://…', hint: 'La page d’un produit chez un marchand : Fnac, Darty, Boulanger, LDLC… (Amazon bloque souvent la lecture).' },
+          { key: 'target', label: 'Prix cible (€)', type: 'number', min: 0, placeholder: 'Aucun', hint: 'Le produit est mis en avant quand le meilleur prix passe dessous.' },
+        ],
+      },
+      { type: 'note', text: 'Les prix sont relus toutes les 3 heures et gardés jour par jour pour tracer leur évolution. LeDénicheur ne permet pas la recherche automatique : ouvre la fiche du produit sur ledenicheur.fr et colle son lien.' },
+    ],
+  },
+
   ephemeris: {
     label: 'Éphéméride',
     description: 'Image du jour et « ce jour-là dans l’histoire », d’après Wikipédia.',
@@ -475,7 +502,8 @@ export const SECRET_FIELDS = [
 export function cleanSection(section) {
   const out = clean(section);
   for (const field of listFields(TYPES[section.type]?.fields ?? [])) {
-    if (Array.isArray(out[field.key])) out[field.key] = out[field.key].filter((it) => it[field.required]);
+    const keep = typeof field.required === 'function' ? field.required : (it) => it[field.required];
+    if (Array.isArray(out[field.key])) out[field.key] = out[field.key].filter(keep);
   }
   return out;
 }
